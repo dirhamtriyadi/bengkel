@@ -216,7 +216,16 @@ Notification URL:
 POST https://api.example.com/api/v1/payments/midtrans/notification
 ```
 
-Webhook memverifikasi SHA-512 signature dan mengecek ulang status serta nominal transaksi ke API Midtrans. Prosesnya idempotent terhadap status yang sama, lalu mem-posting sale dan jurnal hanya setelah `settlement` atau `capture` yang diterima. Beban fee disimpan per pembayaran dengan `fee_bearer`: `merchant`, `customer`, atau `split`. Konfigurasi default per cabang berada di `payment.midtrans.fee_bearer`.
+Webhook memverifikasi SHA-512 signature dan mengecek ulang status serta nominal transaksi ke API Midtrans. Prosesnya idempotent terhadap status yang sama, lalu mem-posting sale dan jurnal hanya setelah `settlement` atau `capture` yang diterima.
+
+Biaya pelanggan memakai fitur **Automatic Fee Imposition** Midtrans, sehingga backend mengirim tagihan asli dan Midtrans menghitung gross-up berdasarkan channel yang benar-benar dipilih. Nilai aktual `original_amount`, `gross_amount`, dan `customer_imposed_payment_fee` direkonsiliasi saat callback/sync. Konfigurasi cabang berada di `payment.midtrans.channels` dan dapat mengatur:
+
+- channel yang ditampilkan di Snap;
+- porsi fee pelanggan per channel dari 0–100%;
+- acquirer yang diwajibkan provider, misalnya `gopay` untuk QRIS;
+- referensi MDR, biaya tetap, dan pajak untuk rekonsiliasi beban merchant.
+
+Perubahan setting berlaku pada token Snap baru. Snapshot konfigurasi disimpan pada pembayaran agar transaksi yang sudah dimulai tetap dapat diaudit walaupun setting kemudian berubah. Seeder tidak menimpa setting yang telah disesuaikan operator.
 
 ## Deploy Jenkins
 

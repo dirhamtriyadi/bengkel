@@ -15,7 +15,7 @@ type ProfitLoss={from:string;to:string;total_revenue:number;total_expense:number
 type Trial={to:string;accounts:AccountRow[];total_debit:number;total_credit:number;balanced:boolean};
 type Balance={to:string;accounts:AccountRow[];total_assets:number;total_liabilities:number;total_equity:number;retained_earnings:number;total_liabilities_equity:number};
 type Cash={from:string;to:string;transactions:Array<{date:string;journal_number:string;description:string;inflow:number;outflow:number}>;total_inflow:number;total_outflow:number;net_cash_flow:number};
-type Sales={rows:Array<{date:string;method:string;transactions:number;gross_sales:number;gateway_fee:number}>};
+type Sales={rows:Array<{date:string;method:string;transactions:number;gross_sales:number;customer_fee:number;provider_fee:number;net_settlement:number}>};
 type Inventory={rows:Array<{product_id:string;sku:string;name:string;quantity:number;unit_cost:number;value:number}>;total_value:number};
 type Tab="profit-loss"|"trial-balance"|"balance-sheet"|"cash-flow"|"general-ledger"|"sales"|"inventory";
 
@@ -35,7 +35,7 @@ export default function Reports(){
  {tab==="balance-sheet"&&<><Stats values={[[Landmark,"Total aset",bs?.total_assets??0,"text-blue-600"],[TrendingDown,"Liabilitas",bs?.total_liabilities??0,"text-red-600"],[Scale,"Ekuitas + laba ditahan",((bs?.total_equity??0)+(bs?.retained_earnings??0)),"text-emerald-600"]]}/><AccountTable rows={bs?.accounts??[]} title="Posisi keuangan"/></>}
  {tab==="cash-flow"&&<><Stats values={[[TrendingUp,"Kas masuk",cf?.total_inflow??0,"text-emerald-600"],[TrendingDown,"Kas keluar",cf?.total_outflow??0,"text-red-600"],[Wallet,"Arus kas bersih",cf?.net_cash_flow??0,"text-blue-600"]]}/><SimpleTable headers={["Tanggal","Jurnal","Keterangan","Masuk","Keluar"]} rows={(cf?.transactions??[]).map(row=>[dateTime.format(new Date(row.date)),row.journal_number,row.description,rupiah.format(row.inflow),rupiah.format(row.outflow)])}/></>}
  {tab==="general-ledger"&&<DataTable endpoint="/reports/general-ledger" columns={[{key:"entry_date",label:"Tanggal",format:value=>dateTime.format(new Date(String(value)))},{key:"journal_number",label:"Jurnal"},{key:"account_code",label:"Kode akun"},{key:"account_name",label:"Akun"},{key:"description",label:"Keterangan"},{key:"debit",label:"Debit",format:value=>rupiah.format(Number(value))},{key:"credit",label:"Kredit",format:value=>rupiah.format(Number(value))}]}/>}
- {tab==="sales"&&<SimpleTable headers={["Tanggal","Metode","Transaksi","Penjualan bruto","Biaya gateway"]} rows={(sr?.rows??[]).map(row=>[dateTime.format(new Date(row.date)),row.method,String(row.transactions),rupiah.format(row.gross_sales),rupiah.format(row.gateway_fee)])}/>}
+ {tab==="sales"&&<SimpleTable headers={["Tanggal","Metode","Transaksi","Penjualan","Fee pelanggan","Fee provider","Settlement bersih"]} rows={(sr?.rows??[]).map(row=>[dateTime.format(new Date(row.date)),row.method,String(row.transactions),rupiah.format(row.gross_sales),rupiah.format(row.customer_fee),rupiah.format(row.provider_fee),rupiah.format(row.net_settlement)])}/>}
  {tab==="inventory"&&<><Stats values={[[PackageSearch,"Nilai persediaan",iv?.total_value??0,"text-blue-600"]]}/><SimpleTable headers={["SKU","Produk","Kuantitas","Harga modal","Nilai"]} rows={(iv?.rows??[]).map(row=>[row.sku,row.name,String(row.quantity),rupiah.format(row.unit_cost),rupiah.format(row.value)])}/></>}
  </div>
 }

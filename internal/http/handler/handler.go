@@ -626,7 +626,7 @@ type checkoutInput struct {
 	Tax           int64           `json:"tax" validate:"min=0"`
 	PaymentMethod string          `json:"payment_method" validate:"required,oneof=cash midtrans"`
 	AmountPaid    int64           `json:"amount_paid" validate:"min=0"`
-	FeeBearer     string          `json:"fee_bearer" validate:"required,oneof=merchant customer split"`
+	FeeBearer     string          `json:"fee_bearer" validate:"omitempty,oneof=merchant customer split"`
 	Notes         string          `json:"notes"`
 }
 type checkoutResult struct {
@@ -662,6 +662,17 @@ func (h *Handler) Checkout(c *gin.Context) {
 	if in.WorkOrderID == nil && len(in.Items) == 0 {
 		response.Error(c, http.StatusUnprocessableEntity, "ITEMS_REQUIRED", "Pilih minimal satu barang atau jasa")
 		return
+	}
+	feeBearer := "merchant"
+	var feeSettings midtransFeeSettings
+	if in.PaymentMethod == "midtrans" {
+		var err error
+		feeSettings, err = h.midtransFeeSettings(branchID(c))
+		if err != nil {
+			response.Error(c, http.StatusUnprocessableEntity, "MIDTRANS_FEE_CONFIG_INVALID", err.Error())
+			return
+		}
+		feeBearer = feeSettings.feeBearer()
 	}
 	var sale model.Sale
 	var payment model.Payment
@@ -746,16 +757,9 @@ func (h *Handler) Checkout(c *gin.Context) {
 		if grand < 0 {
 			return fmt.Errorf("invalid total")
 		}
-		fee := int64(0)
 		if in.PaymentMethod == "midtrans" {
 			if grand < 1 {
 				return fmt.Errorf("total Midtrans minimal Rp1")
-			}
-			fee = int64(math.Ceil(float64(grand) * 0.007))
-			if in.FeeBearer == "customer" {
-				grand += fee
-			} else if in.FeeBearer == "split" {
-				grand += int64(math.Ceil(float64(fee) / 2))
 			}
 		}
 		status := "pending"
@@ -770,7 +774,7 @@ func (h *Handler) Checkout(c *gin.Context) {
 		}
 		sale.Subtotal = subtotal
 		sale.GrandTotal = grand
-		sale.GatewayFee = fee
+		sale.GatewayFee = 0
 		sale.AmountPaid = in.AmountPaid
 		sale.Status = status
 		sale.PaidAt = paidAt
@@ -780,7 +784,18 @@ func (h *Handler) Checkout(c *gin.Context) {
 		if err := tx.Save(&sale).Error; err != nil {
 			return err
 		}
-		payment = model.Payment{BranchID: branchID(c), SaleID: sale.ID, Method: in.PaymentMethod, Provider: map[bool]string{true: "midtrans", false: "cash"}[in.PaymentMethod == "midtrans"], Status: status, Amount: grand, Fee: fee, FeeBearer: in.FeeBearer, PaidAt: paidAt, Metadata: map[string]any{}}
+		payment = model.Payment{
+			BranchID:   branchID(c),
+			SaleID:     sale.ID,
+			Method:     in.PaymentMethod,
+			Provider:   map[bool]string{true: "midtrans", false: "cash"}[in.PaymentMethod == "midtrans"],
+			Status:     status,
+			BaseAmount: grand,
+			Amount:     grand,
+			FeeBearer:  feeBearer,
+			PaidAt:     paidAt,
+			Metadata:   map[string]any{},
+		}
 		if in.PaymentMethod == "midtrans" {
 			payment.ProviderReference = sale.Number
 		}
@@ -793,7 +808,7 @@ func (h *Handler) Checkout(c *gin.Context) {
 			}
 		}
 		if status == "paid" {
-			return h.postSaleJournal(tx, sale, cogs, payment.FeeBearer)
+			return h.postSaleJournal(tx, sale, cogs, payment)
 		}
 		return nil
 	})
@@ -832,8 +847,8 @@ func (h *Handler) consumeStock(tx *gorm.DB, saleID uuid.UUID, p model.Product, q
 	ref := saleID
 	return tx.Create(&model.InventoryMovement{BranchID: branchID(c), ProductID: p.ID, ReferenceType: "sale", ReferenceID: &ref, Direction: "out", Quantity: qty, UnitCost: p.CostPrice, CreatedBy: userID(c)}).Error
 }
-func (h *Handler) postSaleJournal(tx *gorm.DB, sale model.Sale, cogs int64, feeBearer string) error {
-	codes := []string{"1101", "4101", "5101", "1201", "5202"}
+func (h *Handler) postSaleJournal(tx *gorm.DB, sale model.Sale, cogs int64, payment model.Payment) error {
+	codes := []string{"1101", "4101", "5101", "1201", "5202", "4201"}
 	accounts := map[string]uuid.UUID{}
 	var rows []model.Account
 	if err := tx.Where("code IN ? AND (branch_id IS NULL OR branch_id=?)", codes, sale.BranchID).Find(&rows).Error; err != nil {
@@ -842,29 +857,48 @@ func (h *Handler) postSaleJournal(tx *gorm.DB, sale model.Sale, cogs int64, feeB
 	for _, account := range rows {
 		accounts[account.Code] = account.ID
 	}
-	if len(accounts) < 5 {
-		return errors.New("chart of accounts is incomplete")
+	required := []string{"1101", "4101", "5101", "1201", "5202"}
+	if payment.CustomerFee > 0 {
+		required = append(required, "4201")
+	}
+	for _, code := range required {
+		if accounts[code] == uuid.Nil {
+			return errors.New("chart of accounts is incomplete")
+		}
+	}
+	if payment.BaseAmount == 0 {
+		payment.BaseAmount = sale.GrandTotal - payment.CustomerFee
+	}
+	if payment.Amount == 0 {
+		payment.Amount = payment.BaseAmount + payment.CustomerFee
+	}
+	netSettlement := payment.Amount - payment.ProviderFee
+	if netSettlement < 0 {
+		return errors.New("Midtrans settlement amount is invalid")
+	}
+	if payment.BaseAmount+payment.CustomerFee != payment.Amount {
+		return errors.New("payment fee reconciliation is not balanced")
 	}
 	entry := model.JournalEntry{BranchID: sale.BranchID, Number: number("JE"), EntryDate: time.Now(), Description: "Penjualan " + sale.Number, ReferenceType: "sale", ReferenceID: &sale.ID, Status: "draft", CreatedBy: sale.CashierID}
 	if err := tx.Create(&entry).Error; err != nil {
 		return err
 	}
-	netSettlement := sale.GrandTotal - sale.GatewayFee
-	if netSettlement < 0 {
-		netSettlement = 0
+	lines := make([]model.JournalLine, 0, 6)
+	if netSettlement > 0 {
+		lines = append(lines, model.JournalLine{JournalEntryID: entry.ID, AccountID: accounts["1101"], Description: "Settlement kas/bank", Debit: netSettlement})
 	}
-	lines := []model.JournalLine{
-		{JournalEntryID: entry.ID, AccountID: accounts["1101"], Description: "Settlement kas/bank", Debit: netSettlement},
-		{JournalEntryID: entry.ID, AccountID: accounts["4101"], Description: "Pendapatan penjualan", Credit: sale.GrandTotal},
-	}
+	lines = append(lines, model.JournalLine{JournalEntryID: entry.ID, AccountID: accounts["4101"], Description: "Pendapatan penjualan", Credit: payment.BaseAmount})
 	if cogs > 0 {
 		lines = append(lines,
 			model.JournalLine{JournalEntryID: entry.ID, AccountID: accounts["5101"], Description: "Harga pokok penjualan", Debit: cogs},
 			model.JournalLine{JournalEntryID: entry.ID, AccountID: accounts["1201"], Description: "Persediaan", Credit: cogs},
 		)
 	}
-	if sale.GatewayFee > 0 {
-		lines = append(lines, model.JournalLine{JournalEntryID: entry.ID, AccountID: accounts["5202"], Description: "Beban payment gateway (" + feeBearer + ")", Debit: sale.GatewayFee})
+	if payment.ProviderFee > 0 {
+		lines = append(lines, model.JournalLine{JournalEntryID: entry.ID, AccountID: accounts["5202"], Description: "Beban payment gateway (" + payment.FeeBearer + ")", Debit: payment.ProviderFee})
+	}
+	if payment.CustomerFee > 0 {
+		lines = append(lines, model.JournalLine{JournalEntryID: entry.ID, AccountID: accounts["4201"], Description: "Pemulihan biaya payment gateway", Credit: payment.CustomerFee})
 	}
 	if err := tx.Create(&lines).Error; err != nil {
 		return err
@@ -942,18 +976,47 @@ func (h *Handler) CreateMidtransSnap(c *gin.Context) {
 	if sale.CustomerID != nil {
 		_ = h.DB.Where("id=? AND branch_id=?", *sale.CustomerID, branchID(c)).First(&customer).Error
 	}
+	feeSettings, err := h.midtransFeeSettings(branchID(c))
+	if snapshot, ok := payment.Metadata["fee_config_snapshot"]; ok {
+		if saved, snapshotErr := decodeMidtransFeeSnapshot(snapshot); snapshotErr == nil {
+			feeSettings = saved
+			err = nil
+		}
+	}
+	if err != nil {
+		response.Error(c, http.StatusUnprocessableEntity, "MIDTRANS_FEE_CONFIG_INVALID", err.Error())
+		return
+	}
+	channels := feeSettings.enabledChannels()
+	enabledPayments := make([]string, 0, len(channels))
+	feeConfigs := make([]paymentgateway.PaymentFeeConfig, 0, len(channels))
+	for _, channel := range channels {
+		enabledPayments = append(enabledPayments, channel.PaymentType)
+		feeConfigs = append(feeConfigs, paymentgateway.PaymentFeeConfig{
+			PaymentType:        channel.PaymentType,
+			Acquirer:           channel.Acquirer,
+			CustomerPercentage: channel.CustomerPercentage,
+		})
+	}
 
 	gateway := paymentgateway.NewMidtrans(h.Config.MidtransServerKey, h.Config.MidtransIsProduction)
+	snapAmount := payment.BaseAmount
+	if snapAmount == 0 {
+		snapAmount = payment.Amount
+	}
 	result, err := gateway.CreateSnap(c.Request.Context(), paymentgateway.SnapInput{
-		IdempotencyKey: payment.ID.String(),
-		OrderID:        payment.ProviderReference,
-		Amount:         payment.Amount,
-		ItemID:         payment.SaleID.String(),
-		ItemName:       "Pembayaran " + payment.ProviderReference,
-		CustomerName:   customer.Name,
-		CustomerEmail:  customer.Email,
-		CustomerPhone:  customer.Phone,
-		FinishURL:      strings.TrimRight(h.Config.FrontendURL, "/") + "/print/receipt/" + sale.ID.String(),
+		IdempotencyKey:   payment.ID.String(),
+		OrderID:          payment.ProviderReference,
+		Amount:           snapAmount,
+		ItemID:           payment.SaleID.String(),
+		ItemName:         "Pembayaran " + payment.ProviderReference,
+		CustomerName:     customer.Name,
+		CustomerEmail:    customer.Email,
+		CustomerPhone:    customer.Phone,
+		FinishURL:        strings.TrimRight(h.Config.FrontendURL, "/") + "/print/receipt/" + sale.ID.String(),
+		EnabledPayments:  enabledPayments,
+		AutomaticFee:     feeSettings.AutomaticFee,
+		PaymentFeeConfig: feeConfigs,
 	})
 	if err != nil {
 		response.Error(c, http.StatusBadGateway, "MIDTRANS_REJECTED", "Midtrans menolak pembuatan transaksi: "+err.Error())
@@ -963,7 +1026,15 @@ func (h *Handler) CreateMidtransSnap(c *gin.Context) {
 	if h.Config.MidtransIsProduction {
 		environment = "production"
 	}
-	payment.Metadata = map[string]any{"snap_token": result.Token, "redirect_url": result.RedirectURL, "environment": environment, "sdk": "midtrans-go"}
+	if payment.Metadata == nil {
+		payment.Metadata = map[string]any{}
+	}
+	payment.Metadata["snap_token"] = result.Token
+	payment.Metadata["redirect_url"] = result.RedirectURL
+	payment.Metadata["environment"] = environment
+	payment.Metadata["sdk"] = "midtrans-go"
+	payment.Metadata["automatic_fee"] = feeSettings.AutomaticFee
+	payment.Metadata["fee_config_snapshot"] = feeSettings
 	if err := h.DB.Model(&payment).Update("metadata", payment.Metadata).Error; err != nil {
 		serverError(c)
 		return
@@ -982,7 +1053,7 @@ func (h *Handler) CreateMidtransSnap(c *gin.Context) {
 func (h *Handler) Dashboard(c *gin.Context) {
 	bid := branchID(c)
 	var revenue, openWO, lowStock int64
-	h.DB.Model(&model.Sale{}).Where("branch_id=? AND status='paid' AND paid_at>=date_trunc('month',now())", bid).Select("COALESCE(sum(grand_total),0)").Scan(&revenue)
+	h.DB.Model(&model.Sale{}).Where("branch_id=? AND status='paid' AND paid_at>=date_trunc('month',now())", bid).Select("COALESCE(sum(grand_total-gateway_fee),0)").Scan(&revenue)
 	h.DB.Model(&model.WorkOrder{}).Where("branch_id=? AND status NOT IN ('completed','invoiced','cancelled')", bid).Count(&openWO)
 	h.DB.Table("inventory_balances i").Joins("JOIN products p ON p.id=i.product_id").Where("i.branch_id=? AND i.quantity<=p.min_stock", bid).Count(&lowStock)
 	response.OK(c, gin.H{"monthly_revenue": revenue, "open_work_orders": openWO, "low_stock_products": lowStock})
@@ -1109,6 +1180,19 @@ func (h *Handler) UpsertSetting(c *gin.Context) {
 		return
 	}
 	key := c.Param("key")
+	if key == midtransChannelsSettingKey {
+		settings, err := parseMidtransFeeSettings(in.Value)
+		if err != nil {
+			response.Error(c, http.StatusUnprocessableEntity, "MIDTRANS_FEE_CONFIG_INVALID", err.Error())
+			return
+		}
+		normalized, err := json.Marshal(settings)
+		if err != nil {
+			serverError(c)
+			return
+		}
+		in.Value = normalized
+	}
 	var row model.Setting
 	err := h.DB.Where("branch_id=? AND key=?", branchID(c), key).First(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -1275,11 +1359,38 @@ func (h *Handler) checkMidtransTransaction(c *gin.Context, payment model.Payment
 	if transaction == nil || transaction.OrderID != payment.ProviderReference {
 		return nil, errMidtransStatusInvalid
 	}
-	grossAmount, err := strconv.ParseFloat(transaction.GrossAmount, 64)
-	if err != nil || int64(math.Round(grossAmount)) != payment.Amount {
+	grossAmount, err := parseMidtransAmount(transaction.GrossAmount)
+	if err != nil {
 		return nil, errMidtransAmountMismatch
 	}
+	baseAmount := payment.BaseAmount
+	if baseAmount == 0 {
+		baseAmount = payment.Amount
+	}
+	if transaction.OriginalAmount != "" {
+		originalAmount, parseErr := parseMidtransAmount(transaction.OriginalAmount)
+		if parseErr != nil || originalAmount != baseAmount {
+			return nil, errMidtransAmountMismatch
+		}
+	} else if grossAmount < baseAmount {
+		return nil, errMidtransAmountMismatch
+	}
+	customerFee := grossAmount - baseAmount
+	if transaction.CustomerImposedPaymentFee != "" {
+		imposedFee, parseErr := parseMidtransAmount(transaction.CustomerImposedPaymentFee)
+		if parseErr != nil || imposedFee != customerFee {
+			return nil, errMidtransAmountMismatch
+		}
+	}
 	return transaction, nil
+}
+
+func parseMidtransAmount(value string) (int64, error) {
+	amount, err := strconv.ParseFloat(value, 64)
+	if err != nil || amount < 0 {
+		return 0, errors.New("invalid Midtrans amount")
+	}
+	return int64(math.Round(amount)), nil
 }
 
 func (h *Handler) respondMidtransStatusError(c *gin.Context, err error) {
@@ -1301,10 +1412,46 @@ func (h *Handler) applyMidtransTransaction(c *gin.Context, payment model.Payment
 	} else if transaction.TransactionStatus == "deny" || transaction.TransactionStatus == "cancel" || transaction.TransactionStatus == "expire" {
 		status = "failed"
 	}
-	if payment.Status == status {
+	if payment.Status == status && status != "pending" {
 		return status, true, nil
 	}
-	err := h.DB.Transaction(func(tx *gorm.DB) error {
+	grossAmount, err := parseMidtransAmount(transaction.GrossAmount)
+	if err != nil {
+		return status, false, err
+	}
+	baseAmount := payment.BaseAmount
+	if baseAmount == 0 {
+		baseAmount = payment.Amount
+	}
+	customerFee := grossAmount - baseAmount
+	feeSettings := defaultMidtransFeeSettings()
+	if snapshot, ok := payment.Metadata["fee_config_snapshot"]; ok {
+		if saved, snapshotErr := decodeMidtransFeeSnapshot(snapshot); snapshotErr == nil {
+			feeSettings = saved
+		}
+	}
+	channelKey := midtransChannelKey(transaction)
+	channel, found := feeSettings.channel(channelKey)
+	if !found {
+		channel = midtransChannelSettings{PaymentType: channelKey}
+		switch payment.FeeBearer {
+		case "customer":
+			channel.CustomerPercentage = 100
+		case "split":
+			channel.CustomerPercentage = 50
+		}
+	}
+	if !feeSettings.AutomaticFee {
+		channel.CustomerPercentage = 0
+	}
+	providerFee := deriveMidtransProviderFee(baseAmount, customerFee, channel)
+	feeBearer := "merchant"
+	if channel.CustomerPercentage >= 100 {
+		feeBearer = "customer"
+	} else if channel.CustomerPercentage > 0 {
+		feeBearer = "split"
+	}
+	err = h.DB.Transaction(func(tx *gorm.DB) error {
 		now := time.Now()
 		metadata := payment.Metadata
 		if metadata == nil {
@@ -1312,7 +1459,27 @@ func (h *Handler) applyMidtransTransaction(c *gin.Context, payment model.Payment
 		}
 		metadata["transaction_id"] = transaction.TransactionID
 		metadata["transaction_status"] = transaction.TransactionStatus
-		updates := map[string]any{"status": status, "provider_reference": transaction.OrderID, "metadata": metadata}
+		metadata["payment_type"] = transaction.PaymentType
+		metadata["payment_channel"] = channelKey
+		metadata["bank"] = transaction.Bank
+		metadata["store"] = transaction.Store
+		metadata["acquirer"] = transaction.Acquirer
+		metadata["original_amount"] = baseAmount
+		metadata["gross_amount"] = grossAmount
+		metadata["customer_imposed_payment_fee"] = customerFee
+		metadata["provider_fee_estimated"] = channel.CustomerPercentage < 100
+		updates := map[string]any{
+			"status":             status,
+			"provider_reference": transaction.OrderID,
+			"base_amount":        baseAmount,
+			"amount":             grossAmount,
+			"fee":                providerFee,
+			"customer_fee":       customerFee,
+			"provider_fee":       providerFee,
+			"fee_bearer":         feeBearer,
+			"payment_channel":    channelKey,
+			"metadata":           metadata,
+		}
 		if status == "paid" {
 			updates["paid_at"] = now
 		}
@@ -1329,7 +1496,9 @@ func (h *Handler) applyMidtransTransaction(c *gin.Context, payment model.Payment
 			}
 			sale.Status = "paid"
 			sale.PaidAt = &now
-			sale.AmountPaid = sale.GrandTotal
+			sale.GatewayFee = customerFee
+			sale.GrandTotal = grossAmount
+			sale.AmountPaid = grossAmount
 			if err := tx.Save(&sale).Error; err != nil {
 				return err
 			}
@@ -1337,7 +1506,20 @@ func (h *Handler) applyMidtransTransaction(c *gin.Context, payment model.Payment
 			if err := tx.Model(&model.SaleItem{}).Where("sale_id=?", sale.ID).Select("COALESCE(SUM(unit_cost*quantity),0)").Scan(&cogs).Error; err != nil {
 				return err
 			}
-			return h.postSaleJournal(tx, sale, cogs, payment.FeeBearer)
+			payment.BaseAmount = baseAmount
+			payment.Amount = grossAmount
+			payment.Fee = providerFee
+			payment.CustomerFee = customerFee
+			payment.ProviderFee = providerFee
+			payment.FeeBearer = feeBearer
+			payment.PaymentChannel = channelKey
+			return h.postSaleJournal(tx, sale, cogs, payment)
+		}
+		if status == "pending" {
+			return tx.Model(&model.Sale{}).Where("id=? AND status='pending'", payment.SaleID).Updates(map[string]any{
+				"gateway_fee": customerFee,
+				"grand_total": grossAmount,
+			}).Error
 		}
 		var sale model.Sale
 		if err := tx.First(&sale, "id=?", payment.SaleID).Error; err != nil {
@@ -1352,6 +1534,28 @@ func (h *Handler) applyMidtransTransaction(c *gin.Context, payment model.Payment
 		return nil
 	})
 	return status, false, err
+}
+
+func midtransChannelKey(transaction *paymentgateway.TransactionStatus) string {
+	if transaction == nil {
+		return ""
+	}
+	if transaction.PaymentType == "bank_transfer" {
+		switch strings.ToLower(transaction.Bank) {
+		case "bca":
+			return "bca_va"
+		case "bni":
+			return "bni_va"
+		case "bri":
+			return "bri_va"
+		case "permata":
+			return "permata_va"
+		}
+	}
+	if transaction.PaymentType == "cstore" && transaction.Store != "" {
+		return strings.ToLower(transaction.Store)
+	}
+	return transaction.PaymentType
 }
 
 func bind(c *gin.Context, dst any) bool {

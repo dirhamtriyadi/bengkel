@@ -187,9 +187,13 @@ type Payment struct {
 	Provider          string         `json:"provider"`
 	ProviderReference string         `json:"provider_reference"`
 	Status            string         `json:"status"`
+	BaseAmount        int64          `json:"base_amount"`
 	Amount            int64          `json:"amount"`
 	Fee               int64          `json:"fee"`
+	CustomerFee       int64          `json:"customer_fee"`
+	ProviderFee       int64          `json:"provider_fee"`
 	FeeBearer         string         `json:"fee_bearer"`
+	PaymentChannel    string         `json:"payment_channel"`
 	PaidAt            *time.Time     `json:"paid_at"`
 	Metadata          map[string]any `json:"metadata" gorm:"serializer:json"`
 }

@@ -109,7 +109,7 @@ func userSeeder(tx *gorm.DB, branch model.Branch) ([]model.User, error) {
 }
 
 func accountSeeder(tx *gorm.DB, branch model.Branch) error {
-	accounts := []struct{ Code, Name, Type string }{{"1101", "Kas dan Bank", "asset"}, {"1201", "Persediaan Suku Cadang", "asset"}, {"1301", "Piutang Usaha", "asset"}, {"2101", "Utang Usaha", "liability"}, {"3101", "Modal Pemilik", "equity"}, {"4101", "Pendapatan Penjualan dan Jasa", "revenue"}, {"5101", "Harga Pokok Penjualan", "expense"}, {"5201", "Beban Operasional", "expense"}, {"5202", "Beban Payment Gateway", "expense"}}
+	accounts := []struct{ Code, Name, Type string }{{"1101", "Kas dan Bank", "asset"}, {"1201", "Persediaan Suku Cadang", "asset"}, {"1301", "Piutang Usaha", "asset"}, {"2101", "Utang Usaha", "liability"}, {"3101", "Modal Pemilik", "equity"}, {"4101", "Pendapatan Penjualan dan Jasa", "revenue"}, {"4201", "Pemulihan Biaya Payment Gateway", "revenue"}, {"5101", "Harga Pokok Penjualan", "expense"}, {"5201", "Beban Operasional", "expense"}, {"5202", "Beban Payment Gateway", "expense"}}
 	for _, a := range accounts {
 		row := model.Account{Base: model.Base{ID: stable("account-" + a.Code)}, BranchID: &branch.ID, Code: a.Code, Name: a.Name, Type: a.Type, IsActive: true}
 		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&row).Error; err != nil {
@@ -212,12 +212,18 @@ func cmsSeeder(tx *gorm.DB) error {
 
 func settingSeeder(tx *gorm.DB, branch model.Branch) error {
 	settings := []model.Setting{
-		{Base: model.Base{ID: stable("setting-fee")}, BranchID: &branch.ID, Key: "payment.midtrans.fee_bearer", Value: json.RawMessage(`{"value":"customer","split_percentage":50}`)},
+		{Base: model.Base{ID: stable("setting-midtrans-channels")}, BranchID: &branch.ID, Key: "payment.midtrans.channels", Value: json.RawMessage(`{"automatic_fee":true,"channels":[{"payment_type":"bca_va","label":"BCA Virtual Account","enabled":true,"customer_percentage":100,"fee_percentage":0,"fixed_fee":4000,"tax_percentage":11},{"payment_type":"bni_va","label":"BNI Virtual Account","enabled":true,"customer_percentage":100,"fee_percentage":0,"fixed_fee":4000,"tax_percentage":11},{"payment_type":"bri_va","label":"BRI Virtual Account","enabled":true,"customer_percentage":100,"fee_percentage":0,"fixed_fee":4000,"tax_percentage":11},{"payment_type":"permata_va","label":"Permata Virtual Account","enabled":true,"customer_percentage":100,"fee_percentage":0,"fixed_fee":4000,"tax_percentage":11},{"payment_type":"echannel","label":"Mandiri Bill Payment","enabled":true,"customer_percentage":100,"fee_percentage":0,"fixed_fee":4000,"tax_percentage":11},{"payment_type":"gopay","label":"GoPay","enabled":true,"customer_percentage":100,"fee_percentage":2,"fixed_fee":0,"tax_percentage":11},{"payment_type":"qris","acquirer":"gopay","label":"QRIS","enabled":true,"customer_percentage":100,"fee_percentage":0.7,"fixed_fee":0,"tax_percentage":0},{"payment_type":"shopeepay","label":"ShopeePay","enabled":true,"customer_percentage":100,"fee_percentage":2,"fixed_fee":0,"tax_percentage":11},{"payment_type":"credit_card","label":"Kartu kredit","enabled":true,"customer_percentage":100,"fee_percentage":2.9,"fixed_fee":2000,"tax_percentage":11},{"payment_type":"indomaret","label":"Indomaret","enabled":true,"customer_percentage":100,"fee_percentage":0,"fixed_fee":1000,"tax_percentage":0},{"payment_type":"alfamart","label":"Alfamart / Alfamidi / DAN+DAN","enabled":true,"customer_percentage":100,"fee_percentage":0,"fixed_fee":5000,"tax_percentage":0},{"payment_type":"akulaku","label":"Akulaku PayLater","enabled":true,"customer_percentage":100,"fee_percentage":1.7,"fixed_fee":0,"tax_percentage":11}]}`)},
 		{Base: model.Base{ID: stable("setting-tax")}, BranchID: &branch.ID, Key: "transaction.tax", Value: json.RawMessage(`{"enabled":false,"percentage":11}`)},
 		{Base: model.Base{ID: stable("setting-business")}, BranchID: &branch.ID, Key: "business.profile", Value: json.RawMessage(`{"name":"Bengkel Maju Motor","whatsapp":"6281234567890","opening_hours":"Senin–Sabtu, 08.00–17.00"}`), IsPublic: true},
 	}
 	for i := range settings {
-		if err := tx.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"value", "is_public", "updated_at"})}).Create(&settings[i]).Error; err != nil {
+		var existing model.Setting
+		result := tx.Where("branch_id=? AND key=?", branch.ID, settings[i].Key).Limit(1).Find(&existing)
+		err := result.Error
+		if err == nil && result.RowsAffected == 0 {
+			err = tx.Create(&settings[i]).Error
+		}
+		if err != nil {
 			return err
 		}
 	}

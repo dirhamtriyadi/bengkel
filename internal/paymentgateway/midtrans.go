@@ -3,12 +3,14 @@ package paymentgateway
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/midtrans/midtrans-go"
-	"github.com/midtrans/midtrans-go/coreapi"
 	"github.com/midtrans/midtrans-go/snap"
 )
 
@@ -18,15 +20,24 @@ type Midtrans struct {
 }
 
 type SnapInput struct {
-	IdempotencyKey string
-	OrderID        string
-	Amount         int64
-	ItemID         string
-	ItemName       string
-	CustomerName   string
-	CustomerEmail  string
-	CustomerPhone  string
-	FinishURL      string
+	IdempotencyKey   string
+	OrderID          string
+	Amount           int64
+	ItemID           string
+	ItemName         string
+	CustomerName     string
+	CustomerEmail    string
+	CustomerPhone    string
+	FinishURL        string
+	EnabledPayments  []string
+	AutomaticFee     bool
+	PaymentFeeConfig []PaymentFeeConfig
+}
+
+type PaymentFeeConfig struct {
+	PaymentType        string
+	Acquirer           string
+	CustomerPercentage float64
 }
 
 type SnapResult struct {
@@ -35,11 +46,17 @@ type SnapResult struct {
 }
 
 type TransactionStatus struct {
-	OrderID           string
-	GrossAmount       string
-	TransactionID     string
-	TransactionStatus string
-	FraudStatus       string
+	OrderID                   string
+	GrossAmount               string
+	OriginalAmount            string
+	CustomerImposedPaymentFee string
+	PaymentType               string
+	Bank                      string
+	Store                     string
+	Acquirer                  string
+	TransactionID             string
+	TransactionStatus         string
+	FraudStatus               string
 }
 
 func NewMidtrans(serverKey string, production bool) Midtrans {
@@ -59,39 +76,68 @@ func (gateway Midtrans) CreateSnap(ctx context.Context, input SnapInput) (SnapRe
 		client.Options.SetPaymentIdempotencyKey(input.IdempotencyKey)
 	}
 
-	request := BuildSnapRequest(input)
-	result, midtransError := client.CreateTransaction(request)
+	request := BuildSnapRequestMap(input)
+	result, midtransError := client.CreateTransactionWithMap(request)
 	if midtransError != nil {
 		return SnapResult{}, providerError(midtransError)
 	}
-	if result == nil || result.Token == "" {
+	token, _ := result["token"].(string)
+	redirectURL, _ := result["redirect_url"].(string)
+	if token == "" {
 		message := "Midtrans tidak mengembalikan token transaksi"
-		if result != nil && len(result.ErrorMessages) > 0 {
-			message = strings.Join(result.ErrorMessages, "; ")
+		if messages, ok := result["error_messages"].([]any); ok {
+			values := make([]string, 0, len(messages))
+			for _, value := range messages {
+				values = append(values, fmt.Sprint(value))
+			}
+			if len(values) > 0 {
+				message = strings.Join(values, "; ")
+			}
 		}
 		return SnapResult{}, &Error{StatusCode: 502, Message: message}
 	}
-	return SnapResult{Token: result.Token, RedirectURL: result.RedirectURL}, nil
+	return SnapResult{Token: token, RedirectURL: redirectURL}, nil
 }
 
 func (gateway Midtrans) CheckTransaction(ctx context.Context, orderID string) (*TransactionStatus, error) {
-	client := coreapi.Client{}
-	client.New(gateway.serverKey, gateway.environment)
-	client.HttpClient = secureHTTPClient()
-	client.Options.SetContext(ctx)
-	result, midtransError := client.CheckTransaction(orderID)
+	client := secureHTTPClient()
+	options := &midtrans.ConfigOptions{}
+	options.SetContext(ctx)
+	var result struct {
+		OrderID           string `json:"order_id"`
+		GrossAmount       string `json:"gross_amount"`
+		PaymentType       string `json:"payment_type"`
+		Bank              string `json:"bank"`
+		Store             string `json:"store"`
+		Acquirer          string `json:"acquirer"`
+		TransactionID     string `json:"transaction_id"`
+		TransactionStatus string `json:"transaction_status"`
+		FraudStatus       string `json:"fraud_status"`
+		ExtraInfo         struct {
+			GrossAmountInfo struct {
+				OriginalAmount            any `json:"original_amount"`
+				GrossAmount               any `json:"gross_amount"`
+				CustomerImposedPaymentFee any `json:"customer_imposed_payment_fee"`
+			} `json:"gross_amount_info"`
+		} `json:"extra_info"`
+	}
+	endpoint := fmt.Sprintf("%s/v2/%s/status", gateway.environment.BaseUrl(), url.PathEscape(orderID))
+	midtransError := client.Call(http.MethodGet, endpoint, &gateway.serverKey, options, nil, &result)
 	if midtransError != nil {
 		return nil, providerError(midtransError)
 	}
-	if result == nil {
-		return nil, nil
-	}
 	return &TransactionStatus{
-		OrderID:           result.OrderID,
-		GrossAmount:       result.GrossAmount,
-		TransactionID:     result.TransactionID,
-		TransactionStatus: result.TransactionStatus,
-		FraudStatus:       result.FraudStatus,
+		OrderID:                   result.OrderID,
+		GrossAmount:               result.GrossAmount,
+		OriginalAmount:            amountString(result.ExtraInfo.GrossAmountInfo.OriginalAmount),
+		CustomerImposedPaymentFee: amountString(result.ExtraInfo.GrossAmountInfo.CustomerImposedPaymentFee),
+		PaymentType:               result.PaymentType,
+		Bank:                      result.Bank,
+		Store:                     result.Store,
+		Acquirer:                  result.Acquirer,
+		TransactionID:             result.TransactionID,
+		TransactionStatus:         result.TransactionStatus,
+		FraudStatus:               result.FraudStatus,
 	}, nil
 }
 
@@ -130,6 +176,60 @@ func BuildSnapRequest(input SnapInput) *snap.Request {
 		CustomerDetail: customer,
 		CreditCard:     &snap.CreditCardDetails{Secure: true},
 		Callbacks:      &snap.Callbacks{Finish: input.FinishURL},
+	}
+}
+
+func BuildSnapRequestMap(input SnapInput) *snap.RequestParamWithMap {
+	request := BuildSnapRequest(input)
+	payload := snap.RequestParamWithMap{
+		"transaction_details": map[string]any{
+			"order_id":     request.TransactionDetails.OrderID,
+			"gross_amount": request.TransactionDetails.GrossAmt,
+		},
+		"item_details": *request.Items,
+		"credit_card": map[string]any{
+			"secure": true,
+		},
+	}
+	if request.CustomerDetail != nil {
+		payload["customer_details"] = request.CustomerDetail
+	}
+	if request.Callbacks != nil && request.Callbacks.Finish != "" {
+		payload["callbacks"] = map[string]any{"finish": request.Callbacks.Finish}
+	}
+	if len(input.EnabledPayments) > 0 {
+		payload["enabled_payments"] = input.EnabledPayments
+	}
+	if input.AutomaticFee {
+		configs := make([]map[string]any, 0, len(input.PaymentFeeConfig))
+		for _, config := range input.PaymentFeeConfig {
+			item := map[string]any{
+				"payment_type":        config.PaymentType,
+				"customer_percentage": config.CustomerPercentage,
+			}
+			if config.Acquirer != "" {
+				item["acquirer"] = config.Acquirer
+			}
+			configs = append(configs, item)
+		}
+		payload["customer_imposed_payment_fee"] = map[string]any{
+			"enable":              true,
+			"payment_fee_configs": configs,
+		}
+	}
+	return &payload
+}
+
+func amountString(value any) string {
+	switch typed := value.(type) {
+	case string:
+		return typed
+	case float64:
+		return strconv.FormatFloat(typed, 'f', -1, 64)
+	case json.Number:
+		return typed.String()
+	default:
+		return ""
 	}
 }
 

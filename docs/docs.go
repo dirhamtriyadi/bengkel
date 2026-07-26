@@ -2448,7 +2448,6 @@ const docTemplate = `{
         "internal_http_handler.checkoutInput": {
             "type": "object",
             "required": [
-                "fee_bearer",
                 "payment_method"
             ],
             "properties": {

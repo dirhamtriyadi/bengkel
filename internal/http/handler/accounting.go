@@ -584,14 +584,23 @@ func (h *Handler) CashFlow(c *gin.Context) {
 func (h *Handler) SalesReport(c *gin.Context) {
 	from, to := reportPeriod(c)
 	type row struct {
-		Date         time.Time `json:"date"`
-		Method       string    `json:"method"`
-		Transactions int64     `json:"transactions"`
-		GrossSales   int64     `json:"gross_sales"`
-		GatewayFee   int64     `json:"gateway_fee"`
+		Date          time.Time `json:"date"`
+		Method        string    `json:"method"`
+		Transactions  int64     `json:"transactions"`
+		GrossSales    int64     `json:"gross_sales"`
+		CustomerFee   int64     `json:"customer_fee"`
+		ProviderFee   int64     `json:"provider_fee"`
+		NetSettlement int64     `json:"net_settlement"`
 	}
 	rows := make([]row, 0)
-	err := h.DB.Table("sales s").Select("s.paid_at::date date,p.method,COUNT(DISTINCT s.id) transactions,SUM(s.grand_total) gross_sales,SUM(p.fee) gateway_fee").
+	err := h.DB.Table("sales s").Select(`
+			s.paid_at::date date,
+			p.method,
+			COUNT(DISTINCT s.id) transactions,
+			SUM(p.base_amount) gross_sales,
+			SUM(p.customer_fee) customer_fee,
+			SUM(p.provider_fee) provider_fee,
+			SUM(p.amount-p.provider_fee) net_settlement`).
 		Joins("JOIN payments p ON p.sale_id=s.id AND p.status='paid'").
 		Where("s.branch_id=? AND s.status='paid' AND s.paid_at::date BETWEEN ? AND ?", branchID(c), from, to).
 		Group("s.paid_at::date,p.method").Order("date DESC,p.method").Scan(&rows).Error

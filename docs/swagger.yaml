@@ -127,7 +127,6 @@ definitions:
       work_order_id:
         type: string
     required:
-    - fee_bearer
     - payment_method
     type: object
   internal_http_handler.customerInput:

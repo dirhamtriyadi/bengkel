@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1754" viewBox="0 0 1240 1754">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#171717" flood-opacity=".13"/></filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#f97316"/></marker>
+  </defs>
+  <rect width="1240" height="1754" fill="#f7f4ef"/>
+  <rect width="1240" height="18" fill="#f97316"/>
+  <g font-family="Noto Sans,DejaVu Sans,sans-serif">
+    <text x="82" y="105" font-size="18" font-weight="800" fill="#f97316" letter-spacing="2">USER INTERFACE JOURNEY</text>
+    <text x="82" y="174" font-size="49" font-weight="900" fill="#171717">Dari website hingga tombol checkout</text>
+    <text x="82" y="218" font-size="21" fill="#57534e">Representasi layar aktual BengkelOS sebelum pelanggan diarahkan ke Snap.</text>
+
+    <g transform="translate(82 282)">
+      <circle cx="28" cy="30" r="28" fill="#171717"/><text x="28" y="38" text-anchor="middle" font-size="21" font-weight="800" fill="#fff">1</text>
+      <text x="76" y="25" font-size="22" font-weight="900" fill="#171717">Pelanggan membuka website Bengkel Maju Motor</text>
+      <text x="76" y="53" font-size="16" fill="#78716c">Melihat layanan, transparansi harga, cara kerja, lalu datang atau membuat janji servis.</text>
+      <g transform="translate(0 83)" filter="url(#shadow)">
+        <rect width="1076" height="330" rx="26" fill="#fff"/>
+        <rect width="1076" height="48" rx="26" fill="#e7e5e4"/><rect y="24" width="1076" height="24" fill="#e7e5e4"/>
+        <circle cx="28" cy="24" r="6" fill="#ef4444"/><circle cx="48" cy="24" r="6" fill="#f59e0b"/><circle cx="68" cy="24" r="6" fill="#22c55e"/>
+        <rect x="112" y="11" width="560" height="26" rx="13" fill="#fff"/><text x="132" y="30" font-size="12" fill="#78716c">https://bengkel.example.com</text>
+        <g transform="translate(34 73)">
+          <rect width="40" height="40" rx="12" fill="#f97316"/><path d="M13 13 L27 27 M26 11 L30 15 L16 29 L12 25 Z" fill="none" stroke="#fff" stroke-width="3"/>
+          <text x="55" y="27" font-size="18" font-weight="900" fill="#171717">Maju Motor</text>
+          <text x="710" y="27" font-size="14" font-weight="700" fill="#57534e">Layanan</text><text x="790" y="27" font-size="14" font-weight="700" fill="#57534e">Cara kerja</text><text x="890" y="27" font-size="14" font-weight="700" fill="#57534e">Kontak</text>
+          <rect x="955" y="4" width="82" height="34" rx="12" fill="#fff" stroke="#d6d3d1"/><text x="996" y="26" text-anchor="middle" font-size="13" font-weight="700">Masuk staf</text>
+          <text x="0" y="105" font-size="14" font-weight="800" fill="#f97316">SERVIS MOTOR TANPA DRAMA</text>
+          <text x="0" y="155" font-size="37" font-weight="900" fill="#171717">Motor sehat, perjalanan tenang.</text>
+          <text x="0" y="192" font-size="16" fill="#78716c">Perawatan transparan, suku cadang terjamin, dan riwayat servis tercatat.</text>
+          <rect x="0" y="218" width="176" height="46" rx="14" fill="#f97316"/><text x="88" y="247" text-anchor="middle" font-size="15" font-weight="800" fill="#fff">Buat Janji Servis →</text>
+          <g transform="translate(700 76)"><rect width="305" height="185" rx="20" fill="#171717"/><text x="25" y="35" font-size="12" fill="#a8a29e">STATUS SERVIS</text><text x="25" y="66" font-size="20" font-weight="900" fill="#fff">B 1234 XYZ</text><rect x="168" y="23" width="112" height="28" rx="14" fill="#14532d"/><text x="224" y="42" text-anchor="middle" font-size="11" font-weight="800" fill="#86efac">SEDANG DIKERJAKAN</text><circle cx="28" cy="105" r="6" fill="#22c55e"/><text x="46" y="110" font-size="13" fill="#fff">Pemeriksaan mekanik</text><circle cx="28" cy="143" r="6" fill="#f97316"/><text x="46" y="148" font-size="13" fill="#fff">Penggantian oli &amp; tune up</text></g>
+        </g>
+      </g>
+    </g>
+
+    <line x1="620" y1="723" x2="620" y2="778" stroke="#f97316" stroke-width="4" marker-end="url(#arrow)"/>
+
+    <g transform="translate(82 808)">
+      <circle cx="28" cy="30" r="28" fill="#171717"/><text x="28" y="38" text-anchor="middle" font-size="21" font-weight="800" fill="#fff">2</text>
+      <text x="76" y="25" font-size="22" font-weight="900" fill="#171717">Kasir membuka POS atau tagihan work order</text>
+      <text x="76" y="53" font-size="16" fill="#78716c">Semua barang, jasa, diskon dan biaya gateway ditampilkan sebelum pembayaran.</text>
+      <g transform="translate(0 83)" filter="url(#shadow)">
+        <rect width="1076" height="612" rx="26" fill="#fff"/>
+        <rect width="220" height="612" rx="26" fill="#171717"/><rect x="194" width="26" height="612" fill="#171717"/>
+        <rect x="24" y="25" width="42" height="42" rx="12" fill="#f97316"/><text x="79" y="53" font-size="18" font-weight="900" fill="#fff">BengkelOS</text>
+        <rect x="18" y="109" width="184" height="44" rx="12" fill="#f97316"/><text x="42" y="137" font-size="14" font-weight="800" fill="#fff">Kasir / POS</text>
+        <text x="42" y="193" font-size="14" fill="#a8a29e">Penerimaan &amp; Servis</text><text x="42" y="235" font-size="14" fill="#a8a29e">Produk</text><text x="42" y="277" font-size="14" fill="#a8a29e">Pembayaran</text>
+
+        <g transform="translate(252 34)">
+          <text x="0" y="30" font-size="30" font-weight="900" fill="#171717">Pembayaran servis</text>
+          <text x="0" y="59" font-size="15" fill="#78716c">Tagihkan seluruh barang dan jasa dari work order selesai.</text>
+          <g transform="translate(0 91)">
+            <rect width="480" height="445" rx="20" fill="#fafaf9" stroke="#e7e5e4"/>
+            <text x="24" y="40" font-size="18" font-weight="900" fill="#171717">Item work order</text>
+            <rect x="24" y="62" width="432" height="76" rx="14" fill="#f5f5f4"/><text x="43" y="91" font-size="15" font-weight="800" fill="#171717">WO-20260726-2C4E77 · B 1234 XYZ</text><text x="43" y="117" font-size="13" fill="#78716c">Budi Santoso · Honda Vario 150</text>
+            <rect x="24" y="157" width="432" height="78" rx="14" fill="#fff" stroke="#e7e5e4"/><text x="43" y="188" font-size="15" font-weight="800">Oli Mesin 10W-40</text><text x="43" y="213" font-size="13" fill="#78716c">1 × Rp65.000</text><text x="431" y="200" text-anchor="end" font-size="14" font-weight="800">Rp65.000</text>
+            <rect x="24" y="251" width="432" height="78" rx="14" fill="#fff" stroke="#e7e5e4"/><text x="43" y="282" font-size="15" font-weight="800">Jasa Tune Up</text><text x="43" y="307" font-size="13" fill="#78716c">1 × Rp85.000</text><text x="431" y="294" text-anchor="end" font-size="14" font-weight="800">Rp85.000</text>
+            <rect x="24" y="345" width="432" height="78" rx="14" fill="#fff" stroke="#e7e5e4"/><text x="43" y="376" font-size="15" font-weight="800">Busi Iridium</text><text x="43" y="401" font-size="13" fill="#78716c">1 × Rp95.000</text><text x="431" y="388" text-anchor="end" font-size="14" font-weight="800">Rp95.000</text>
+          </g>
+          <g transform="translate(508 91)">
+            <rect width="290" height="445" rx="20" fill="#fff" stroke="#e7e5e4"/>
+            <text x="22" y="40" font-size="18" font-weight="900">Tagihan</text>
+            <text x="22" y="86" font-size="14" fill="#78716c">Subtotal</text><text x="268" y="86" text-anchor="end" font-size="14" font-weight="700">Rp245.000</text>
+            <text x="22" y="122" font-size="14" fill="#78716c">Biaya gateway</text><text x="268" y="122" text-anchor="end" font-size="14" font-weight="700">Rp1.715</text>
+            <line x1="22" y1="147" x2="268" y2="147" stroke="#d6d3d1"/>
+            <text x="22" y="184" font-size="18" font-weight="900">Total</text><text x="268" y="184" text-anchor="end" font-size="18" font-weight="900">Rp246.715</text>
+            <text x="22" y="231" font-size="13" font-weight="700">Metode</text><rect x="22" y="245" width="246" height="42" rx="11" fill="#fff" stroke="#f97316" stroke-width="2"/><text x="40" y="272" font-size="14" font-weight="800">Midtrans</text><path d="M244 262 l6 6 6-6" fill="none" stroke="#57534e" stroke-width="2"/>
+            <text x="22" y="321" font-size="13" font-weight="700">Biaya gateway</text><rect x="22" y="335" width="246" height="42" rx="11" fill="#fff" stroke="#d6d3d1"/><text x="40" y="362" font-size="14">Pelanggan</text>
+            <rect x="22" y="391" width="246" height="42" rx="12" fill="#f97316"/><text x="145" y="418" text-anchor="middle" font-size="15" font-weight="900" fill="#fff">Bayar &amp; cetak</text>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+  <text x="82" y="1692" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="15" fill="#a8a29e">BengkelOS · Flow Transaksi Midtrans</text>
+  <text x="1158" y="1692" text-anchor="end" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="15" font-weight="700" fill="#78716c">03 / 05</text>
+</svg>

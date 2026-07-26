@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1754" viewBox="0 0 1240 1754">
+  <defs>
+    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#151515"/>
+      <stop offset="1" stop-color="#30251f"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#f97316"/>
+      <stop offset="1" stop-color="#fb923c"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#171717" flood-opacity=".12"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#f97316"/>
+    </marker>
+  </defs>
+  <rect width="1240" height="1754" fill="#f7f4ef"/>
+  <rect width="1240" height="930" fill="url(#hero)"/>
+  <circle cx="1080" cy="150" r="250" fill="#f97316" opacity=".08"/>
+  <circle cx="1050" cy="120" r="150" fill="#f97316" opacity=".12"/>
+
+  <g transform="translate(82 72)">
+    <rect width="58" height="58" rx="16" fill="#f97316"/>
+    <path d="M20 19 L39 38 M36 16 L42 22 L23 41 L17 35 Z" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="76" y="38" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="29" font-weight="800" fill="#fff">BengkelOS</text>
+  </g>
+  <rect x="82" y="194" width="430" height="46" rx="23" fill="#fff" opacity=".1"/>
+  <text x="105" y="224" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="18" font-weight="700" letter-spacing="1.4" fill="#fdba74">DOKUMEN PENDAFTARAN PAYMENT GATEWAY</text>
+
+  <text x="82" y="350" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="82" font-weight="900" fill="#fff">Flow Transaksi</text>
+  <text x="82" y="445" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="82" font-weight="900" fill="#fb923c">BengkelOS × Midtrans</text>
+  <text x="86" y="522" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="28" fill="#d6d3d1">
+    <tspan x="86" dy="0">Customer journey dari membuka website/aplikasi, memilih layanan,</tspan>
+    <tspan x="86" dy="43">checkout, hingga masuk ke halaman pembayaran Midtrans Snap.</tspan>
+  </text>
+
+  <g transform="translate(82 652)">
+    <rect width="1076" height="182" rx="28" fill="#fff" opacity=".06" stroke="#fff" stroke-opacity=".15"/>
+    <g font-family="Noto Sans,DejaVu Sans,sans-serif">
+      <g transform="translate(36 34)">
+        <circle cx="34" cy="34" r="34" fill="#f97316"/><text x="34" y="42" text-anchor="middle" font-size="24" font-weight="800" fill="#fff">1</text>
+        <text x="34" y="100" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">Buka aplikasi</text>
+      </g>
+      <line x1="140" y1="68" x2="235" y2="68" stroke="#f97316" stroke-width="4" marker-end="url(#arrow)"/>
+      <g transform="translate(220 34)">
+        <circle cx="34" cy="34" r="34" fill="#f97316"/><text x="34" y="42" text-anchor="middle" font-size="24" font-weight="800" fill="#fff">2</text>
+        <text x="34" y="100" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">Pilih transaksi</text>
+      </g>
+      <line x1="324" y1="68" x2="419" y2="68" stroke="#f97316" stroke-width="4" marker-end="url(#arrow)"/>
+      <g transform="translate(404 34)">
+        <circle cx="34" cy="34" r="34" fill="#f97316"/><text x="34" y="42" text-anchor="middle" font-size="24" font-weight="800" fill="#fff">3</text>
+        <text x="34" y="100" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">Review tagihan</text>
+      </g>
+      <line x1="508" y1="68" x2="603" y2="68" stroke="#f97316" stroke-width="4" marker-end="url(#arrow)"/>
+      <g transform="translate(588 34)">
+        <circle cx="34" cy="34" r="34" fill="#f97316"/><text x="34" y="42" text-anchor="middle" font-size="24" font-weight="800" fill="#fff">4</text>
+        <text x="34" y="100" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">Pilih Midtrans</text>
+      </g>
+      <line x1="692" y1="68" x2="787" y2="68" stroke="#f97316" stroke-width="4" marker-end="url(#arrow)"/>
+      <g transform="translate(772 34)">
+        <circle cx="34" cy="34" r="34" fill="#f97316"/><text x="34" y="42" text-anchor="middle" font-size="24" font-weight="800" fill="#fff">5</text>
+        <text x="34" y="100" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">Snap terbuka</text>
+      </g>
+      <line x1="876" y1="68" x2="971" y2="68" stroke="#f97316" stroke-width="4" marker-end="url(#arrow)"/>
+      <g transform="translate(956 34)">
+        <circle cx="34" cy="34" r="34" fill="#22c55e"/><path d="M20 34 L30 44 L49 23" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="34" y="100" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">Bayar</text>
+      </g>
+    </g>
+  </g>
+
+  <g transform="translate(82 1010)" filter="url(#shadow)">
+    <rect width="520" height="310" rx="28" fill="#fff"/>
+    <rect x="30" y="30" width="62" height="62" rx="18" fill="#fff1e8"/>
+    <path d="M48 62 h27 M54 50 h15 M54 74 h15" stroke="#f97316" stroke-width="5" stroke-linecap="round"/>
+    <text x="116" y="67" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="25" font-weight="800" fill="#171717">Transaksi Servis</text>
+    <text x="30" y="130" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="19" fill="#57534e">
+      <tspan x="30" dy="0">Motor diterima dan diperiksa, barang serta</tspan>
+      <tspan x="30" dy="31">jasa dicatat pada work order, lalu pelanggan</tspan>
+      <tspan x="30" dy="31">membayar invoice melalui Midtrans.</tspan>
+    </text>
+    <rect x="30" y="245" width="185" height="38" rx="19" fill="#ecfdf5"/>
+    <text x="122" y="271" text-anchor="middle" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="16" font-weight="700" fill="#047857">Service checkout</text>
+  </g>
+  <g transform="translate(638 1010)" filter="url(#shadow)">
+    <rect width="520" height="310" rx="28" fill="#fff"/>
+    <rect x="30" y="30" width="62" height="62" rx="18" fill="#fff1e8"/>
+    <path d="M48 51 h28 l-5 23 H53 Z M57 82 a4 4 0 1 0 .1 0 M69 82 a4 4 0 1 0 .1 0" fill="none" stroke="#f97316" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="116" y="67" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="25" font-weight="800" fill="#171717">Transaksi Retail</text>
+    <text x="30" y="130" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="19" fill="#57534e">
+      <tspan x="30" dy="0">Pelanggan memilih barang atau jasa langsung</tspan>
+      <tspan x="30" dy="31">di kasir, memeriksa total tagihan, kemudian</tspan>
+      <tspan x="30" dy="31">memilih pembayaran Midtrans.</tspan>
+    </text>
+    <rect x="30" y="245" width="166" height="38" rx="19" fill="#eff6ff"/>
+    <text x="113" y="271" text-anchor="middle" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="16" font-weight="700" fill="#1d4ed8">Retail checkout</text>
+  </g>
+
+  <g transform="translate(82 1405)">
+    <text x="0" y="0" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="17" font-weight="700" fill="#78716c">IDENTITAS DOKUMEN</text>
+    <line x1="0" y1="23" x2="1076" y2="23" stroke="#d6d3d1"/>
+    <text x="0" y="70" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="17" fill="#78716c">Produk</text>
+    <text x="180" y="70" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="17" font-weight="700" fill="#171717">BengkelOS — Bengkel Maju Motor</text>
+    <text x="0" y="108" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="17" fill="#78716c">Environment</text>
+    <text x="180" y="108" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="17" font-weight="700" fill="#171717">Midtrans Sandbox · Snap</text>
+    <text x="0" y="146" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="17" fill="#78716c">Versi</text>
+    <text x="180" y="146" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="17" font-weight="700" fill="#171717">1.0 · 26 Juli 2026</text>
+  </g>
+
+  <text x="82" y="1692" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="15" fill="#a8a29e">Dokumen rahasia terbatas untuk proses verifikasi merchant/payment gateway.</text>
+  <text x="1158" y="1692" text-anchor="end" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="15" font-weight="700" fill="#78716c">01 / 05</text>
+</svg>

@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1754" viewBox="0 0 1240 1754">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#f97316"/></marker>
+    <marker id="arrowGray" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#78716c"/></marker>
+  </defs>
+  <rect width="1240" height="1754" fill="#faf9f7"/>
+  <rect width="1240" height="18" fill="#f97316"/>
+  <g font-family="Noto Sans,DejaVu Sans,sans-serif">
+    <text x="82" y="105" font-size="18" font-weight="800" fill="#f97316" letter-spacing="2">TECHNICAL TRANSACTION SEQUENCE</text>
+    <text x="82" y="174" font-size="49" font-weight="900" fill="#171717">Urutan integrasi dan konfirmasi pembayaran</text>
+    <text x="82" y="218" font-size="21" fill="#57534e">Server Key hanya digunakan backend; frontend menerima Snap token dan Client Key publik.</text>
+
+    <g transform="translate(82 282)">
+      <rect width="1076" height="825" rx="30" fill="#fff" stroke="#e7e5e4"/>
+      <g transform="translate(28 28)">
+        <g><rect width="180" height="60" rx="16" fill="#171717"/><text x="90" y="38" text-anchor="middle" font-size="17" font-weight="900" fill="#fff">Pelanggan / Kasir</text><line x1="90" y1="60" x2="90" y2="742" stroke="#d6d3d1" stroke-dasharray="7 7"/></g>
+        <g transform="translate(270 0)"><rect width="180" height="60" rx="16" fill="#f97316"/><text x="90" y="38" text-anchor="middle" font-size="17" font-weight="900" fill="#fff">Frontend Next.js</text><line x1="90" y1="60" x2="90" y2="742" stroke="#fed7aa" stroke-dasharray="7 7"/></g>
+        <g transform="translate(540 0)"><rect width="180" height="60" rx="16" fill="#2563eb"/><text x="90" y="38" text-anchor="middle" font-size="17" font-weight="900" fill="#fff">API Go / Gin</text><line x1="90" y1="60" x2="90" y2="742" stroke="#bfdbfe" stroke-dasharray="7 7"/></g>
+        <g transform="translate(810 0)"><rect width="180" height="60" rx="16" fill="#059669"/><text x="90" y="38" text-anchor="middle" font-size="17" font-weight="900" fill="#fff">Midtrans</text><line x1="90" y1="60" x2="90" y2="742" stroke="#a7f3d0" stroke-dasharray="7 7"/></g>
+
+        <g font-size="14">
+          <line x1="90" y1="110" x2="350" y2="110" stroke="#f97316" stroke-width="3" marker-end="url(#arrow)"/><text x="220" y="99" text-anchor="middle" font-weight="800" fill="#171717">Klik “Bayar &amp; cetak”</text>
+          <line x1="360" y1="170" x2="620" y2="170" stroke="#f97316" stroke-width="3" marker-end="url(#arrow)"/><text x="490" y="159" text-anchor="middle" font-weight="800" fill="#171717">POST /sales/checkout</text>
+          <rect x="553" y="195" width="154" height="58" rx="12" fill="#eff6ff"/><text x="630" y="219" text-anchor="middle" font-weight="800" fill="#1d4ed8">Simpan invoice</text><text x="630" y="239" text-anchor="middle" fill="#1d4ed8">status: pending</text>
+          <line x1="620" y1="285" x2="890" y2="285" stroke="#f97316" stroke-width="3" marker-end="url(#arrow)"/><text x="755" y="274" text-anchor="middle" font-weight="800" fill="#171717">SDK: CreateTransaction</text>
+          <text x="755" y="305" text-anchor="middle" font-size="12" fill="#78716c">Order ID unik · Gross amount · 3DS · Idempotency key</text>
+          <line x1="890" y1="350" x2="630" y2="350" stroke="#78716c" stroke-width="3" marker-end="url(#arrowGray)"/><text x="760" y="339" text-anchor="middle" font-weight="800" fill="#171717">Snap token + redirect URL</text>
+          <line x1="620" y1="410" x2="360" y2="410" stroke="#78716c" stroke-width="3" marker-end="url(#arrowGray)"/><text x="490" y="399" text-anchor="middle" font-weight="800" fill="#171717">Token diteruskan ke frontend</text>
+          <line x1="360" y1="470" x2="890" y2="470" stroke="#f97316" stroke-width="3" marker-end="url(#arrow)"/><text x="625" y="459" text-anchor="middle" font-weight="800" fill="#171717">window.snap.pay(token)</text>
+          <rect x="810" y="498" width="180" height="64" rx="12" fill="#ecfdf5"/><text x="900" y="524" text-anchor="middle" font-weight="800" fill="#047857">Payment page</text><text x="900" y="546" text-anchor="middle" fill="#047857">ditampilkan</text>
+          <line x1="890" y1="595" x2="620" y2="595" stroke="#78716c" stroke-width="3" marker-end="url(#arrowGray)"/><text x="755" y="584" text-anchor="middle" font-weight="800" fill="#171717">Webhook / status check</text>
+          <text x="755" y="615" text-anchor="middle" font-size="12" fill="#78716c">Signature, order ID, nominal dan status diverifikasi</text>
+          <rect x="553" y="640" width="154" height="76" rx="12" fill="#eff6ff"/><text x="630" y="665" text-anchor="middle" font-weight="800" fill="#1d4ed8">Update payment</text><text x="630" y="686" text-anchor="middle" fill="#1d4ed8">posting jurnal</text><text x="630" y="706" text-anchor="middle" fill="#1d4ed8">buat receipt</text>
+          <line x1="620" y1="752" x2="90" y2="752" stroke="#78716c" stroke-width="3" marker-end="url(#arrowGray)"/><text x="355" y="741" text-anchor="middle" font-weight="800" fill="#171717">Status &amp; bukti transaksi</text>
+        </g>
+      </g>
+    </g>
+
+    <g transform="translate(82 1155)">
+      <text x="0" y="0" font-size="18" font-weight="800" fill="#78716c" letter-spacing="1.5">KONFIGURASI &amp; ENDPOINT UTAMA</text>
+      <g transform="translate(0 28)">
+        <rect width="1076" height="258" rx="24" fill="#171717"/>
+        <text x="30" y="48" font-size="14" font-weight="800" fill="#fb923c">KOMPONEN</text><text x="248" y="48" font-size="14" font-weight="800" fill="#fb923c">IMPLEMENTASI</text><text x="820" y="48" font-size="14" font-weight="800" fill="#fb923c">TUJUAN</text>
+        <line x1="30" y1="68" x2="1046" y2="68" stroke="#44403c"/>
+        <text x="30" y="101" font-size="14" fill="#fff">Snap JavaScript</text><text x="248" y="101" font-size="13" fill="#d6d3d1">app.sandbox.midtrans.com/snap/snap.js</text><text x="820" y="101" font-size="13" fill="#d6d3d1">Menampilkan payment page</text>
+        <text x="30" y="143" font-size="14" fill="#fff">SDK Backend</text><text x="248" y="143" font-size="13" fill="#d6d3d1">github.com/midtrans/midtrans-go v1.3.8</text><text x="820" y="143" font-size="13" fill="#d6d3d1">Token &amp; status transaksi</text>
+        <text x="30" y="185" font-size="14" fill="#fff">Notification</text><text x="248" y="185" font-size="13" fill="#d6d3d1">POST /api/v1/payments/midtrans/notification</text><text x="820" y="185" font-size="13" fill="#d6d3d1">Konfirmasi asinkron</text>
+        <text x="30" y="227" font-size="14" fill="#fff">Status sync</text><text x="248" y="227" font-size="13" fill="#d6d3d1">POST /api/v1/payments/{id}/midtrans/sync</text><text x="820" y="227" font-size="13" fill="#d6d3d1">Callback &amp; localhost sandbox</text>
+      </g>
+    </g>
+
+    <g transform="translate(82 1490)">
+      <rect width="1076" height="132" rx="24" fill="#ecfdf5"/>
+      <circle cx="58" cy="66" r="28" fill="#22c55e"/><path d="M43 66 l10 10 21-25" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+      <text x="106" y="51" font-size="18" font-weight="900" fill="#065f46">Kriteria flow terpenuhi</text>
+      <text x="106" y="80" font-size="15" fill="#047857">Customer journey terdokumentasi dari landing website/aplikasi, pembuatan transaksi, review</text>
+      <text x="106" y="104" font-size="15" fill="#047857">checkout, pemilihan Midtrans, hingga payment page Snap dan konfirmasi hasil pembayaran.</text>
+    </g>
+  </g>
+  <text x="82" y="1692" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="15" fill="#a8a29e">BengkelOS · Flow Transaksi Midtrans</text>
+  <text x="1158" y="1692" text-anchor="end" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="15" font-weight="700" fill="#78716c">05 / 05</text>
+</svg>

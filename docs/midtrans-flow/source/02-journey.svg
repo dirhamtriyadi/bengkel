@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1754" viewBox="0 0 1240 1754">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="7" stdDeviation="10" flood-color="#171717" flood-opacity=".09"/></filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#f97316"/></marker>
+  </defs>
+  <rect width="1240" height="1754" fill="#faf9f7"/>
+  <rect x="0" y="0" width="1240" height="18" fill="#f97316"/>
+  <g font-family="Noto Sans,DejaVu Sans,sans-serif">
+    <text x="82" y="105" font-size="18" font-weight="800" fill="#f97316" letter-spacing="2">CUSTOMER JOURNEY OVERVIEW</text>
+    <text x="82" y="174" font-size="49" font-weight="900" fill="#171717">Dua jalur transaksi, satu flow pembayaran</text>
+    <text x="82" y="218" font-size="21" fill="#57534e">Pelanggan servis dan pembeli retail bertemu pada proses review tagihan dan Midtrans Snap.</text>
+
+    <g transform="translate(82 282)">
+      <rect width="1076" height="112" rx="24" fill="#171717"/>
+      <g fill="#fff">
+        <circle cx="55" cy="56" r="28" fill="#f97316"/><text x="55" y="64" text-anchor="middle" font-size="22" font-weight="800">P</text>
+        <text x="95" y="50" font-size="17" font-weight="800">Pelanggan</text><text x="95" y="74" font-size="12" fill="#d6d3d1">Memilih &amp; membayar</text>
+        <circle cx="320" cy="56" r="28" fill="#fb923c"/><text x="320" y="64" text-anchor="middle" font-size="22" font-weight="800">K</text>
+        <text x="360" y="50" font-size="17" font-weight="800">Kasir</text><text x="360" y="74" font-size="12" fill="#d6d3d1">Mencatat &amp; checkout</text>
+        <circle cx="585" cy="56" r="28" fill="#60a5fa"/><text x="585" y="64" text-anchor="middle" font-size="22" font-weight="800">S</text>
+        <text x="625" y="50" font-size="17" font-weight="800">BengkelOS</text><text x="625" y="74" font-size="12" fill="#d6d3d1">Invoice &amp; Snap token</text>
+        <circle cx="850" cy="56" r="28" fill="#22c55e"/><text x="850" y="64" text-anchor="middle" font-size="22" font-weight="800">M</text>
+        <text x="890" y="50" font-size="17" font-weight="800">Midtrans</text><text x="890" y="74" font-size="12" fill="#d6d3d1">Memproses kanal bayar</text>
+      </g>
+    </g>
+
+    <g transform="translate(82 450)">
+      <text x="0" y="0" font-size="16" font-weight="800" fill="#78716c">JALUR A — SERVIS MOTOR</text>
+      <g transform="translate(0 30)" filter="url(#shadow)">
+        <rect width="1076" height="234" rx="28" fill="#fff"/>
+        <rect x="0" y="0" width="12" height="234" rx="6" fill="#f97316"/>
+        <g transform="translate(38 35)">
+          <circle cx="31" cy="31" r="31" fill="#fff1e8"/><text x="31" y="39" text-anchor="middle" font-size="22" font-weight="800" fill="#f97316">1</text>
+          <text x="0" y="95" font-size="18" font-weight="800" fill="#171717">Buka website</text><text x="0" y="124" font-size="15" fill="#78716c">Lihat layanan dan</text><text x="0" y="147" font-size="15" fill="#78716c">buat janji/datangi bengkel</text>
+        </g>
+        <line x1="210" y1="67" x2="274" y2="67" stroke="#f97316" stroke-width="4" marker-end="url(#arrow)"/>
+        <g transform="translate(278 35)">
+          <circle cx="31" cy="31" r="31" fill="#fff1e8"/><text x="31" y="39" text-anchor="middle" font-size="22" font-weight="800" fill="#f97316">2</text>
+          <text x="0" y="95" font-size="18" font-weight="800" fill="#171717">Motor diterima</text><text x="0" y="124" font-size="15" fill="#78716c">Kasir mencatat pelanggan,</text><text x="0" y="147" font-size="15" fill="#78716c">motor dan keluhan</text>
+        </g>
+        <line x1="465" y1="67" x2="529" y2="67" stroke="#f97316" stroke-width="4" marker-end="url(#arrow)"/>
+        <g transform="translate(533 35)">
+          <circle cx="31" cy="31" r="31" fill="#fff1e8"/><text x="31" y="39" text-anchor="middle" font-size="22" font-weight="800" fill="#f97316">3</text>
+          <text x="0" y="95" font-size="18" font-weight="800" fill="#171717">Pengerjaan</text><text x="0" y="124" font-size="15" fill="#78716c">Montir mencatat spare part</text><text x="0" y="147" font-size="15" fill="#78716c">dan jasa yang digunakan</text>
+        </g>
+        <line x1="720" y1="67" x2="784" y2="67" stroke="#f97316" stroke-width="4" marker-end="url(#arrow)"/>
+        <g transform="translate(788 35)">
+          <circle cx="31" cy="31" r="31" fill="#fff1e8"/><text x="31" y="39" text-anchor="middle" font-size="22" font-weight="800" fill="#f97316">4</text>
+          <text x="0" y="95" font-size="18" font-weight="800" fill="#171717">Pekerjaan selesai</text><text x="0" y="124" font-size="15" fill="#78716c">Work order selesai dan</text><text x="0" y="147" font-size="15" fill="#78716c">siap ditagihkan</text>
+        </g>
+      </g>
+    </g>
+
+    <g transform="translate(82 780)">
+      <text x="0" y="0" font-size="16" font-weight="800" fill="#78716c">JALUR B — PEMBELIAN RETAIL</text>
+      <g transform="translate(0 30)" filter="url(#shadow)">
+        <rect width="1076" height="204" rx="28" fill="#fff"/>
+        <rect x="0" y="0" width="12" height="204" rx="6" fill="#3b82f6"/>
+        <g transform="translate(62 36)">
+          <circle cx="31" cy="31" r="31" fill="#eff6ff"/><text x="31" y="39" text-anchor="middle" font-size="22" font-weight="800" fill="#2563eb">1</text>
+          <text x="0" y="95" font-size="18" font-weight="800" fill="#171717">Datang / buka layanan</text><text x="0" y="124" font-size="15" fill="#78716c">Pelanggan ingin membeli barang</text>
+        </g>
+        <line x1="360" y1="68" x2="450" y2="68" stroke="#3b82f6" stroke-width="4" marker-end="url(#arrow)"/>
+        <g transform="translate(465 36)">
+          <circle cx="31" cy="31" r="31" fill="#eff6ff"/><text x="31" y="39" text-anchor="middle" font-size="22" font-weight="800" fill="#2563eb">2</text>
+          <text x="0" y="95" font-size="18" font-weight="800" fill="#171717">Pilih barang / jasa</text><text x="0" y="124" font-size="15" fill="#78716c">Kasir menambahkan item ke POS</text>
+        </g>
+        <line x1="737" y1="68" x2="827" y2="68" stroke="#3b82f6" stroke-width="4" marker-end="url(#arrow)"/>
+        <g transform="translate(842 36)">
+          <circle cx="31" cy="31" r="31" fill="#eff6ff"/><text x="31" y="39" text-anchor="middle" font-size="22" font-weight="800" fill="#2563eb">3</text>
+          <text x="0" y="95" font-size="18" font-weight="800" fill="#171717">Keranjang siap</text><text x="0" y="124" font-size="15" fill="#78716c">Jumlah dan harga terhitung</text>
+        </g>
+      </g>
+    </g>
+
+    <g transform="translate(82 1090)">
+      <rect width="1076" height="420" rx="32" fill="#171717"/>
+      <text x="42" y="55" font-size="17" font-weight="800" fill="#fb923c" letter-spacing="1.5">FLOW BERSAMA — CHECKOUT MIDTRANS</text>
+      <g transform="translate(42 92)">
+        <g><circle cx="32" cy="32" r="32" fill="#f97316"/><text x="32" y="40" text-anchor="middle" font-size="23" font-weight="800" fill="#fff">5</text><text x="0" y="91" font-size="17" font-weight="800" fill="#fff">Review tagihan</text><text x="0" y="119" font-size="14" fill="#a8a29e">Item, diskon, fee, total</text></g>
+        <line x1="178" y1="32" x2="258" y2="32" stroke="#f97316" stroke-width="4" marker-end="url(#arrow)"/>
+        <g transform="translate(274 0)"><circle cx="32" cy="32" r="32" fill="#f97316"/><text x="32" y="40" text-anchor="middle" font-size="23" font-weight="800" fill="#fff">6</text><text x="0" y="91" font-size="17" font-weight="800" fill="#fff">Pilih Midtrans</text><text x="0" y="119" font-size="14" fill="#a8a29e">Metode pembayaran</text></g>
+        <line x1="452" y1="32" x2="532" y2="32" stroke="#f97316" stroke-width="4" marker-end="url(#arrow)"/>
+        <g transform="translate(548 0)"><circle cx="32" cy="32" r="32" fill="#f97316"/><text x="32" y="40" text-anchor="middle" font-size="23" font-weight="800" fill="#fff">7</text><text x="0" y="91" font-size="17" font-weight="800" fill="#fff">Klik Bayar</text><text x="0" y="119" font-size="14" fill="#a8a29e">Invoice pending dibuat</text></g>
+        <line x1="718" y1="32" x2="798" y2="32" stroke="#f97316" stroke-width="4" marker-end="url(#arrow)"/>
+        <g transform="translate(814 0)"><circle cx="32" cy="32" r="32" fill="#22c55e"/><text x="32" y="40" text-anchor="middle" font-size="23" font-weight="800" fill="#fff">8</text><text x="0" y="91" font-size="17" font-weight="800" fill="#fff">Snap terbuka</text><text x="0" y="119" font-size="14" fill="#a8a29e">Masuk payment page</text></g>
+      </g>
+      <line x1="42" y1="270" x2="1034" y2="270" stroke="#44403c"/>
+      <circle cx="73" cy="323" r="18" fill="#22c55e"/><path d="M64 323 l7 7 13-16" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+      <text x="108" y="318" font-size="18" font-weight="800" fill="#fff">Titik pemenuhan persyaratan Midtrans</text>
+      <text x="108" y="349" font-size="16" fill="#d6d3d1">Setelah klik “Bayar &amp; cetak”, pelanggan langsung masuk ke halaman pembayaran Snap.</text>
+    </g>
+  </g>
+  <text x="82" y="1692" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="15" fill="#a8a29e">BengkelOS · Flow Transaksi Midtrans</text>
+  <text x="1158" y="1692" text-anchor="end" font-family="Noto Sans,DejaVu Sans,sans-serif" font-size="15" font-weight="700" fill="#78716c">02 / 05</text>
+</svg>

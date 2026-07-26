@@ -1,0 +1,47 @@
+name: bengkel-production
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: ${ENV_FILE:-.env.production}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    image: ${API_IMAGE:?API_IMAGE is required}
+    entrypoint: ["/app/migrate"]
+    env_file: ${ENV_FILE:-.env.production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    image: ${API_IMAGE:?API_IMAGE is required}
+    restart: unless-stopped
+    env_file: ${ENV_FILE:-.env.production}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks: [default, proxy]
+
+  frontend:
+    image: ${WEB_IMAGE:?WEB_IMAGE is required}
+    restart: unless-stopped
+    env_file: ${ENV_FILE:-.env.production}
+    environment:
+      API_URL: http://api:8080/api/v1
+    depends_on: [api]
+    networks: [default, proxy]
+
+volumes:
+  postgres_data:
+
+networks:
+  proxy:
+    external: true

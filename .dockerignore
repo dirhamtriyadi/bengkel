@@ -1,0 +1,11 @@
+.git
+.gitignore
+.env
+.idea
+.vscode
+bin
+coverage
+tmp
+*.log
+frontend
+deployment

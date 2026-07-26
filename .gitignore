@@ -1,0 +1,12 @@
+.env
+.DS_Store
+bin/
+dist/
+coverage/
+tmp/
+*.log
+frontend/.env.local
+frontend/.next/
+frontend/node_modules/
+frontend/out/
+frontend/*.tsbuildinfo

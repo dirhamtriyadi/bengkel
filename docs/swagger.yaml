@@ -1,0 +1,831 @@
+basePath: /api/v1
+definitions:
+  bengkel_internal_http_response.APIError:
+    properties:
+      code:
+        type: string
+      details:
+        items:
+          $ref: '#/definitions/bengkel_internal_http_response.FieldError'
+        type: array
+      message:
+        type: string
+    type: object
+  bengkel_internal_http_response.Envelope:
+    properties:
+      data: {}
+      error:
+        $ref: '#/definitions/bengkel_internal_http_response.APIError'
+      meta:
+        $ref: '#/definitions/bengkel_internal_http_response.Meta'
+    type: object
+  bengkel_internal_http_response.FieldError:
+    properties:
+      field:
+        type: string
+      message:
+        type: string
+      rule:
+        type: string
+    type: object
+  bengkel_internal_http_response.Meta:
+    properties:
+      last_page:
+        type: integer
+      page:
+        type: integer
+      per_page:
+        type: integer
+      request_id:
+        type: string
+      total:
+        type: integer
+    type: object
+  internal_http_handler.checkoutInput:
+    properties:
+      amount_paid:
+        minimum: 0
+        type: integer
+      customer_id:
+        type: string
+      discount:
+        minimum: 0
+        type: integer
+      fee_bearer:
+        enum:
+        - merchant
+        - customer
+        - split
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/internal_http_handler.workItemInput'
+        minItems: 1
+        type: array
+      notes:
+        type: string
+      payment_method:
+        enum:
+        - cash
+        - midtrans
+        type: string
+      tax:
+        minimum: 0
+        type: integer
+      work_order_id:
+        type: string
+    required:
+    - fee_bearer
+    - items
+    - payment_method
+    type: object
+  internal_http_handler.customerInput:
+    properties:
+      address:
+        type: string
+      code:
+        maxLength: 50
+        type: string
+      email:
+        type: string
+      name:
+        maxLength: 150
+        type: string
+      notes:
+        type: string
+      phone:
+        maxLength: 30
+        type: string
+    required:
+    - code
+    - name
+    type: object
+  internal_http_handler.loginInput:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 8
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  internal_http_handler.productInput:
+    properties:
+      cost_price:
+        minimum: 0
+        type: integer
+      is_active:
+        type: boolean
+      min_stock:
+        minimum: 0
+        type: number
+      name:
+        maxLength: 180
+        type: string
+      selling_price:
+        minimum: 0
+        type: integer
+      sku:
+        maxLength: 80
+        type: string
+      type:
+        enum:
+        - part
+        - service
+        - other
+        type: string
+      unit:
+        maxLength: 30
+        type: string
+    required:
+    - name
+    - sku
+    - type
+    - unit
+    type: object
+  internal_http_handler.refreshInput:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  internal_http_handler.stockInput:
+    properties:
+      direction:
+        enum:
+        - in
+        - out
+        - adjustment
+        type: string
+      notes:
+        maxLength: 500
+        type: string
+      product_id:
+        type: string
+      quantity:
+        type: number
+      unit_cost:
+        minimum: 0
+        type: integer
+    required:
+    - direction
+    - product_id
+    - quantity
+    type: object
+  internal_http_handler.vehicleInput:
+    properties:
+      brand:
+        maxLength: 80
+        type: string
+      color:
+        type: string
+      customer_id:
+        type: string
+      identifier:
+        maxLength: 100
+        type: string
+      model:
+        maxLength: 100
+        type: string
+      notes:
+        type: string
+      odometer:
+        minimum: 0
+        type: integer
+      plate_number:
+        maxLength: 30
+        type: string
+      year:
+        minimum: 0
+        type: integer
+    required:
+    - identifier
+    type: object
+  internal_http_handler.workItemInput:
+    properties:
+      discount:
+        minimum: 0
+        type: integer
+      product_id:
+        type: string
+      quantity:
+        type: number
+    required:
+    - product_id
+    - quantity
+    type: object
+  internal_http_handler.workOrderInput:
+    properties:
+      complaint:
+        type: string
+      customer_id:
+        type: string
+      mechanic_id:
+        type: string
+      odometer:
+        minimum: 0
+        type: integer
+      vehicle_id:
+        type: string
+    required:
+    - complaint
+    - customer_id
+    - vehicle_id
+    type: object
+info:
+  contact: {}
+  description: API operasional bengkel, kasir, stok, pembayaran, akuntansi, audit,
+    dan CMS.
+  title: BengkelOS API
+  version: "1.0"
+paths:
+  /audit-logs:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Daftar audit log immutable
+      tags:
+      - Audit
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Kredensial
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.loginInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      summary: Login pengguna
+      tags:
+      - Auth
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Refresh token
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.refreshInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Cabut refresh token
+      tags:
+      - Auth
+  /auth/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Profil pengguna aktif
+      tags:
+      - Auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Refresh token
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.refreshInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      summary: Rotasi access dan refresh token
+      tags:
+      - Auth
+  /cms/pages:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Daftar halaman CMS
+      tags:
+      - CMS
+  /customers:
+    get:
+      parameters:
+      - description: Halaman
+        in: query
+        name: page
+        type: integer
+      - description: Jumlah per halaman
+        in: query
+        name: per_page
+        type: integer
+      - description: Pencarian
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Daftar pelanggan
+      tags:
+      - Customers
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Pelanggan
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.customerInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Tambah pelanggan
+      tags:
+      - Customers
+  /customers/{id}:
+    delete:
+      parameters:
+      - description: Customer ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Hapus pelanggan
+      tags:
+      - Customers
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Customer ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Pelanggan
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.customerInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Ubah pelanggan
+      tags:
+      - Customers
+  /dashboard:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Statistik dashboard cabang
+      tags:
+      - Dashboard
+  /inventory:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Saldo persediaan cabang
+      tags:
+      - Inventory
+  /inventory/adjustments:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Pergerakan stok
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.stockInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Penyesuaian stok dengan row lock
+      tags:
+      - Inventory
+  /payments/{id}/midtrans/snap:
+    post:
+      parameters:
+      - description: Payment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Buat atau ambil ulang token pembayaran Midtrans Snap
+      tags:
+      - Payments
+  /products:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Daftar barang dan jasa
+      tags:
+      - Products
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Produk
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.productInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Tambah barang atau jasa
+      tags:
+      - Products
+  /public/pages/{slug}:
+    get:
+      parameters:
+      - description: Slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      summary: Halaman CMS terpublikasi
+      tags:
+      - Public
+  /public/settings:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      summary: Pengaturan publik
+      tags:
+      - Public
+  /reports/general-ledger:
+    get:
+      parameters:
+      - description: Filter account ID
+        in: query
+        name: account_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Buku besar
+      tags:
+      - Reports
+  /reports/profit-loss:
+    get:
+      parameters:
+      - description: Tanggal mulai YYYY-MM-DD
+        in: query
+        name: from
+        type: string
+      - description: Tanggal akhir YYYY-MM-DD
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Laporan laba rugi
+      tags:
+      - Reports
+  /sales:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Daftar transaksi
+      tags:
+      - Sales
+  /sales/{id}:
+    get:
+      parameters:
+      - description: Sale ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Detail sale untuk invoice/receipt
+      tags:
+      - Sales
+  /sales/checkout:
+    post:
+      consumes:
+      - application/json
+      description: Mengunci stok, membuat sale/payment, dan mem-posting jurnal untuk
+        pembayaran tunai.
+      parameters:
+      - description: Checkout
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.checkoutInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Checkout penjualan retail atau work order
+      tags:
+      - Sales
+  /settings:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Daftar pengaturan cabang
+      tags:
+      - Settings
+  /vehicles:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Daftar kendaraan
+      tags:
+      - Vehicles
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Kendaraan
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.vehicleInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Tambah kendaraan
+      tags:
+      - Vehicles
+  /work-orders:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Daftar work order
+      tags:
+      - Work Orders
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Work order
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.workOrderInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Terima kendaraan dan buat work order
+      tags:
+      - Work Orders
+  /work-orders/{id}/items:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Work Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Item
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.workItemInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Catat barang atau jasa pada work order
+      tags:
+      - Work Orders
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    description: Masukkan "Bearer {access_token}".
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

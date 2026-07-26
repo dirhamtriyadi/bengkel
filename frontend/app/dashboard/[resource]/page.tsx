@@ -1,0 +1,19 @@
+"use client";
+import { useParams } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { DataTable,type TableColumn } from "@/components/data-table";
+import { dateTime,rupiah } from "@/lib/utils";
+
+const status=(value:unknown)=><Badge className={String(value)==="paid"||String(value)==="completed"?"bg-emerald-100 text-emerald-700":String(value)==="cancelled"||String(value)==="void"?"bg-red-100 text-red-700":"bg-orange-100 text-orange-700"}>{String(value)}</Badge>;
+const money=(value:unknown)=>rupiah.format(Number(value??0));
+const date=(value:unknown)=>value?dateTime.format(new Date(String(value))):"—";
+const configs:Record<string,{title:string;description:string;endpoint:string;columns:TableColumn[]}> = {
+  customers:{title:"Pelanggan",description:"Kelola profil dan riwayat pelanggan lintas transaksi.",endpoint:"/customers",columns:[{key:"code",label:"Kode"},{key:"name",label:"Nama"},{key:"phone",label:"Telepon"},{key:"email",label:"Email"},{key:"created_at",label:"Terdaftar",format:date}]},
+  vehicles:{title:"Kendaraan",description:"Identitas motor dapat berupa plat nomor atau kode internal.",endpoint:"/vehicles",columns:[{key:"identifier",label:"Identitas"},{key:"plate_number",label:"Plat nomor"},{key:"brand",label:"Merek"},{key:"model",label:"Model"},{key:"year",label:"Tahun"},{key:"odometer",label:"Odometer"}]},
+  products:{title:"Produk & jasa",description:"Satu katalog konsisten untuk suku cadang, jasa, dan item lain.",endpoint:"/products",columns:[{key:"sku",label:"SKU"},{key:"name",label:"Nama"},{key:"type",label:"Tipe",format:status},{key:"unit",label:"Satuan"},{key:"cost_price",label:"Harga modal",format:money},{key:"selling_price",label:"Harga jual",format:money}]},
+  inventory:{title:"Persediaan",description:"Saldo stok per cabang dan peringatan minimum.",endpoint:"/inventory",columns:[{key:"sku",label:"SKU"},{key:"name",label:"Produk"},{key:"quantity",label:"Stok"},{key:"unit",label:"Satuan"},{key:"min_stock",label:"Minimum"},{key:"updated_at",label:"Diperbarui",format:date}]},
+  "work-orders":{title:"Work order",description:"Pantau kendaraan dari inspeksi sampai menjadi invoice.",endpoint:"/work-orders",columns:[{key:"number",label:"Nomor"},{key:"status",label:"Status",format:status},{key:"complaint",label:"Keluhan"},{key:"odometer",label:"Odometer"},{key:"created_at",label:"Dibuat",format:date}]},
+  sales:{title:"Transaksi",description:"Penjualan servis dan retail dalam satu arus kas.",endpoint:"/sales",columns:[{key:"number",label:"Invoice"},{key:"status",label:"Status",format:status},{key:"subtotal",label:"Subtotal",format:money},{key:"gateway_fee",label:"Biaya gateway",format:money},{key:"grand_total",label:"Total",format:money},{key:"paid_at",label:"Dibayar",format:date}]},
+  "audit-logs":{title:"Audit log",description:"Jejak aksi sensitif yang immutable dan dapat ditelusuri.",endpoint:"/audit-logs",columns:[{key:"created_at",label:"Waktu",format:date},{key:"action",label:"Aksi",format:status},{key:"resource",label:"Resource"},{key:"resource_id",label:"Resource ID"},{key:"request_id",label:"Request ID"},{key:"ip_address",label:"IP"}]}
+};
+export default function ResourcePage(){const {resource}=useParams<{resource:string}>();const config=configs[resource];if(!config)return <div className="rounded-2xl border bg-white p-10">Halaman tidak ditemukan.</div>;return <div className="space-y-6"><div><h1 className="text-3xl font-bold tracking-tight">{config.title}</h1><p className="mt-2 text-muted-foreground">{config.description}</p></div><DataTable endpoint={config.endpoint} columns={config.columns}/></div>}

@@ -6,8 +6,6 @@ services:
       POSTGRES_DB: bengkel
       POSTGRES_USER: bengkel
       POSTGRES_PASSWORD: bengkel
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -15,6 +13,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    # Port di sisi kiri boleh diubah. PostgreSQL antarkontainer tetap postgres:5432.
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
 
   migrate:
     build: .
@@ -45,10 +46,12 @@ services:
       - path: .env
         required: false
     environment:
+      # Port proses di dalam container sengaja dikunci. Ubah API_HOST_PORT untuk port publik.
+      HTTP_PORT: "8080"
       DATABASE_URL: postgres://bengkel:bengkel@postgres:5432/bengkel?sslmode=disable
-      CORS_ORIGINS: http://localhost:3000
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
     ports:
-      - "8080:8080"
+      - "${API_HOST_PORT:-8080}:8080"
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -57,14 +60,16 @@ services:
     build:
       context: frontend
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:8080/api/v1
-        NEXT_PUBLIC_SITE_URL: http://localhost:3000
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080/api/v1}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
         NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: ${MIDTRANS_CLIENT_KEY:-}
         NEXT_PUBLIC_MIDTRANS_SNAP_URL: ${NEXT_PUBLIC_MIDTRANS_SNAP_URL:-https://app.sandbox.midtrans.com/snap/snap.js}
     environment:
       API_URL: http://api:8080/api/v1
+      # Next.js selalu mendengarkan port internal 3000.
+      PORT: "3000"
     ports:
-      - "3000:3000"
+      - "${FRONTEND_HOST_PORT:-3000}:3000"
     depends_on:
       api:
         condition: service_started

@@ -16,6 +16,9 @@ services:
     image: ${API_IMAGE:?API_IMAGE is required}
     entrypoint: ["/app/migrate"]
     env_file: ${ENV_FILE:-.env.production}
+    environment:
+      # deploy.sh memvalidasi bahwa host/port internal selalu postgres:5432.
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
     depends_on:
       postgres:
         condition: service_healthy
@@ -25,6 +28,10 @@ services:
     image: ${API_IMAGE:?API_IMAGE is required}
     restart: unless-stopped
     env_file: ${ENV_FILE:-.env.production}
+    environment:
+      # Reverse proxy boleh memakai port publik apa pun; proses API tetap 8080.
+      HTTP_PORT: "8080"
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -36,6 +43,7 @@ services:
     env_file: ${ENV_FILE:-.env.production}
     environment:
       API_URL: http://api:8080/api/v1
+      PORT: "3000"
     depends_on: [api]
     networks: [default, proxy]
 

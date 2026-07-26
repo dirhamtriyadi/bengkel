@@ -41,6 +41,34 @@ docker compose up -d --build
 docker compose run --rm seed
 ```
 
+### Port Docker
+
+Port publik pada host dipisahkan dari port internal container supaya deployment tidak salah arah:
+
+| Service | Variabel port host | Port internal tetap |
+|---|---|---|
+| PostgreSQL | `POSTGRES_HOST_PORT` | `5432` |
+| API | `API_HOST_PORT` | `8080` |
+| Frontend | `FRONTEND_HOST_PORT` | `3000` |
+
+Contoh server yang memakai port publik `5433`, `8083`, dan `3005`:
+
+```env
+POSTGRES_HOST_PORT=5433
+API_HOST_PORT=8083
+FRONTEND_HOST_PORT=3005
+HTTP_PORT=8080
+```
+
+Komunikasi antarkontainer tidak pernah memakai port host:
+
+```text
+postgres://bengkel:PASSWORD@postgres:5432/bengkel
+http://api:8080/api/v1
+```
+
+Jangan mengubah `HTTP_PORT` mengikuti port publik API. Compose mengunci proses Go di port `8080`; deployment production juga berhenti dengan pesan yang jelas jika `HTTP_PORT` atau port PostgreSQL internal keliru.
+
 Kemudian logout dan login kembali agar JWT memuat permission terbaru.
 
 ## Menjalankan tanpa Docker

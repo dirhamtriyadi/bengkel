@@ -41,6 +41,59 @@ definitions:
       total:
         type: integer
     type: object
+  internal_http_handler.accountInput:
+    properties:
+      code:
+        maxLength: 30
+        type: string
+      is_active:
+        type: boolean
+      name:
+        maxLength: 150
+        type: string
+      parent_id:
+        type: string
+      type:
+        enum:
+        - asset
+        - liability
+        - equity
+        - revenue
+        - expense
+        type: string
+    required:
+    - code
+    - is_active
+    - name
+    - type
+    type: object
+  internal_http_handler.branchInput:
+    properties:
+      address:
+        type: string
+      code:
+        maxLength: 30
+        type: string
+      currency:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        maxLength: 150
+        type: string
+      phone:
+        maxLength: 30
+        type: string
+      timezone:
+        maxLength: 60
+        type: string
+    required:
+    - code
+    - currency
+    - is_active
+    - name
+    - timezone
+    type: object
   internal_http_handler.checkoutInput:
     properties:
       amount_paid:
@@ -60,7 +113,6 @@ definitions:
       items:
         items:
           $ref: '#/definitions/internal_http_handler.workItemInput'
-        minItems: 1
         type: array
       notes:
         type: string
@@ -76,7 +128,6 @@ definitions:
         type: string
     required:
     - fee_bearer
-    - items
     - payment_method
     type: object
   internal_http_handler.customerInput:
@@ -99,6 +150,97 @@ definitions:
     required:
     - code
     - name
+    type: object
+  internal_http_handler.intakeCustomerInput:
+    properties:
+      address:
+        type: string
+      email:
+        type: string
+      name:
+        maxLength: 150
+        type: string
+      phone:
+        maxLength: 30
+        type: string
+    required:
+    - name
+    type: object
+  internal_http_handler.intakeInput:
+    properties:
+      complaint:
+        maxLength: 1000
+        type: string
+      customer:
+        $ref: '#/definitions/internal_http_handler.intakeCustomerInput'
+      customer_id:
+        type: string
+      mechanic_id:
+        type: string
+      odometer:
+        minimum: 0
+        type: integer
+      vehicle:
+        $ref: '#/definitions/internal_http_handler.intakeVehicleInput'
+      vehicle_id:
+        type: string
+    required:
+    - complaint
+    type: object
+  internal_http_handler.intakeVehicleInput:
+    properties:
+      brand:
+        maxLength: 80
+        type: string
+      color:
+        maxLength: 50
+        type: string
+      identifier:
+        maxLength: 100
+        type: string
+      model:
+        maxLength: 100
+        type: string
+      plate_number:
+        maxLength: 30
+        type: string
+      year:
+        minimum: 0
+        type: integer
+    required:
+    - identifier
+    type: object
+  internal_http_handler.journalInput:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      entry_date:
+        type: string
+      lines:
+        items:
+          $ref: '#/definitions/internal_http_handler.journalLineInput'
+        minItems: 2
+        type: array
+    required:
+    - description
+    - entry_date
+    - lines
+    type: object
+  internal_http_handler.journalLineInput:
+    properties:
+      account_id:
+        type: string
+      credit:
+        minimum: 0
+        type: integer
+      debit:
+        minimum: 0
+        type: integer
+      description:
+        type: string
+    required:
+    - account_id
     type: object
   internal_http_handler.loginInput:
     properties:
@@ -152,6 +294,26 @@ definitions:
     required:
     - refresh_token
     type: object
+  internal_http_handler.roleInput:
+    properties:
+      code:
+        maxLength: 60
+        type: string
+      description:
+        type: string
+      name:
+        maxLength: 100
+        type: string
+      permission_ids:
+        items:
+          type: string
+        minItems: 1
+        type: array
+    required:
+    - code
+    - name
+    - permission_ids
+    type: object
   internal_http_handler.stockInput:
     properties:
       direction:
@@ -174,6 +336,65 @@ definitions:
     - direction
     - product_id
     - quantity
+    type: object
+  internal_http_handler.userInput:
+    properties:
+      branch_id:
+        type: string
+      email:
+        maxLength: 255
+        type: string
+      is_active:
+        type: boolean
+      name:
+        maxLength: 150
+        type: string
+      password:
+        minLength: 8
+        type: string
+      phone:
+        maxLength: 30
+        type: string
+      role_ids:
+        items:
+          type: string
+        minItems: 1
+        type: array
+    required:
+    - email
+    - is_active
+    - name
+    - password
+    - role_ids
+    type: object
+  internal_http_handler.userUpdateInput:
+    properties:
+      branch_id:
+        type: string
+      email:
+        maxLength: 255
+        type: string
+      is_active:
+        type: boolean
+      name:
+        maxLength: 150
+        type: string
+      password:
+        minLength: 8
+        type: string
+      phone:
+        maxLength: 30
+        type: string
+      role_ids:
+        items:
+          type: string
+        minItems: 1
+        type: array
+    required:
+    - email
+    - is_active
+    - name
+    - role_ids
     type: object
   internal_http_handler.vehicleInput:
     properties:
@@ -235,6 +456,24 @@ definitions:
     - customer_id
     - vehicle_id
     type: object
+  internal_http_handler.workOrderUpdateInput:
+    properties:
+      diagnosis:
+        maxLength: 3000
+        type: string
+      mechanic_id:
+        type: string
+      status:
+        enum:
+        - inspection
+        - approval
+        - in_progress
+        - completed
+        - cancelled
+        type: string
+    required:
+    - status
+    type: object
 info:
   contact: {}
   description: API operasional bengkel, kasir, stok, pembayaran, akuntansi, audit,
@@ -242,6 +481,89 @@ info:
   title: BengkelOS API
   version: "1.0"
 paths:
+  /accounts:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Daftar chart of accounts
+      tags:
+      - Accounting
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Akun
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.accountInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Tambah akun COA
+      tags:
+      - Accounting
+  /accounts/{id}:
+    delete:
+      parameters:
+      - description: ID akun
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Hapus akun yang belum digunakan
+      tags:
+      - Accounting
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID akun
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Akun
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.accountInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Ubah akun COA
+      tags:
+      - Accounting
   /audit-logs:
     get:
       produces:
@@ -339,6 +661,70 @@ paths:
       summary: Rotasi access dan refresh token
       tags:
       - Auth
+  /branches:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Daftar cabang
+      tags:
+      - Branches
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Cabang
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.branchInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Tambah cabang
+      tags:
+      - Branches
+  /branches/{id}:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID cabang
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Cabang
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.branchInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Ubah cabang
+      tags:
+      - Branches
   /cms/pages:
     get:
       produces:
@@ -506,6 +892,196 @@ paths:
       summary: Penyesuaian stok dengan row lock
       tags:
       - Inventory
+  /inventory/movements:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Riwayat pergerakan persediaan
+      tags:
+      - Inventory
+  /journals:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Daftar journal entry
+      tags:
+      - Accounting
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Journal entry
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.journalInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Buat jurnal manual sebagai draft
+      tags:
+      - Accounting
+  /journals/{id}:
+    delete:
+      parameters:
+      - description: ID jurnal
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Hapus jurnal draft
+      tags:
+      - Accounting
+    get:
+      parameters:
+      - description: ID jurnal
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Detail journal entry dan baris
+      tags:
+      - Accounting
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID jurnal
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Journal entry
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.journalInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Ubah jurnal draft
+      tags:
+      - Accounting
+  /journals/{id}/post:
+    post:
+      parameters:
+      - description: ID jurnal
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Posting jurnal secara immutable
+      tags:
+      - Accounting
+  /journals/{id}/reverse:
+    post:
+      parameters:
+      - description: ID jurnal
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Buat jurnal pembalik
+      tags:
+      - Accounting
+  /payments:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Daftar pembayaran
+      tags:
+      - Payments
+  /payments/{id}:
+    get:
+      parameters:
+      - description: ID pembayaran
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Detail pembayaran
+      tags:
+      - Payments
   /payments/{id}/midtrans/snap:
     post:
       parameters:
@@ -530,6 +1106,42 @@ paths:
       summary: Buat atau ambil ulang token pembayaran Midtrans Snap
       tags:
       - Payments
+  /payments/{id}/midtrans/sync:
+    post:
+      description: Berguna setelah callback Snap dan saat notification URL tidak dapat
+        menjangkau localhost.
+      parameters:
+      - description: Payment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Sinkronkan status pembayaran langsung ke Midtrans
+      tags:
+      - Payments
+  /permissions:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Katalog permission
+      tags:
+      - Authorization
   /products:
     get:
       produces:
@@ -566,6 +1178,53 @@ paths:
       summary: Tambah barang atau jasa
       tags:
       - Products
+  /products/{id}:
+    delete:
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Nonaktifkan produk yang sudah pernah dipakai
+      tags:
+      - Products
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Produk
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.productInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Ubah barang atau jasa
+      tags:
+      - Products
   /public/pages/{slug}:
     get:
       parameters:
@@ -596,12 +1255,48 @@ paths:
       summary: Pengaturan publik
       tags:
       - Public
+  /reports/balance-sheet:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Laporan posisi keuangan
+      tags:
+      - Reports
+  /reports/cash-flow:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Laporan arus kas
+      tags:
+      - Reports
   /reports/general-ledger:
     get:
       parameters:
       - description: Filter account ID
         in: query
         name: account_id
+        type: string
+      - description: Tanggal mulai YYYY-MM-DD
+        in: query
+        name: from
+        type: string
+      - description: Tanggal akhir YYYY-MM-DD
+        in: query
+        name: to
         type: string
       produces:
       - application/json
@@ -613,6 +1308,20 @@ paths:
       security:
       - BearerAuth: []
       summary: Buku besar
+      tags:
+      - Reports
+  /reports/inventory-valuation:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Laporan nilai persediaan
       tags:
       - Reports
   /reports/profit-loss:
@@ -638,6 +1347,117 @@ paths:
       summary: Laporan laba rugi
       tags:
       - Reports
+  /reports/sales:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Laporan penjualan per hari dan metode
+      tags:
+      - Reports
+  /reports/trial-balance:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Laporan neraca saldo
+      tags:
+      - Reports
+  /roles:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Daftar role beserta permission
+      tags:
+      - Authorization
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Role
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.roleInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Tambah role dan permission
+      tags:
+      - Authorization
+  /roles/{id}:
+    delete:
+      parameters:
+      - description: ID role
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Hapus role yang tidak digunakan
+      tags:
+      - Authorization
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID role
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Role
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.roleInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Ubah role dan sinkronkan permission
+      tags:
+      - Authorization
   /sales:
     get:
       produces:
@@ -719,6 +1539,89 @@ paths:
       summary: Daftar pengaturan cabang
       tags:
       - Settings
+  /users:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Daftar pengguna dan role
+      tags:
+      - Users
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Pengguna
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.userInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Tambah pengguna
+      tags:
+      - Users
+  /users/{id}:
+    delete:
+      parameters:
+      - description: ID pengguna
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Hapus pengguna
+      tags:
+      - Users
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID pengguna
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Pengguna
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.userUpdateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Ubah pengguna dan sinkronkan role
+      tags:
+      - Users
   /vehicles:
     get:
       produces:
@@ -753,6 +1656,53 @@ paths:
       security:
       - BearerAuth: []
       summary: Tambah kendaraan
+      tags:
+      - Vehicles
+  /vehicles/{id}:
+    delete:
+      parameters:
+      - description: Vehicle ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Hapus kendaraan yang belum memiliki work order
+      tags:
+      - Vehicles
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Vehicle ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Kendaraan
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.vehicleInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Ubah data kendaraan
       tags:
       - Vehicles
   /work-orders:
@@ -791,6 +1741,53 @@ paths:
       summary: Terima kendaraan dan buat work order
       tags:
       - Work Orders
+  /work-orders/{id}:
+    get:
+      parameters:
+      - description: Work order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Detail pekerjaan, motor, pelanggan, dan item terpakai
+      tags:
+      - Work Orders
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Work order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Pekerjaan
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.workOrderUpdateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Perbarui diagnosis, montir, dan status pekerjaan
+      tags:
+      - Work Orders
   /work-orders/{id}/items:
     post:
       consumes:
@@ -817,6 +1814,68 @@ paths:
       security:
       - BearerAuth: []
       summary: Catat barang atau jasa pada work order
+      tags:
+      - Work Orders
+  /work-orders/{id}/items/{item_id}:
+    delete:
+      parameters:
+      - description: Work order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Item ID
+        in: path
+        name: item_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Hapus item dan kembalikan stok barang
+      tags:
+      - Work Orders
+  /work-orders/intake:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Penerimaan motor
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.intakeInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Terima motor baru atau kendaraan terdaftar
+      tags:
+      - Work Orders
+  /work-orders/options/mechanics:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Daftar montir aktif pada cabang
       tags:
       - Work Orders
 schemes:

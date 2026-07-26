@@ -31,4 +31,10 @@ h1, h2, h3, .font-display { font-family: Manrope, Inter, ui-sans-serif, system-u
 @media print {
   .print-hidden { display: none !important; }
   body { background: white; }
+  .receipt-page { min-height: 0; box-shadow: none; }
+  .receipt-thermal { width: 80mm !important; padding: 4mm !important; }
+  .receipt-a4 { width: 210mm !important; padding: 14mm !important; }
 }
+
+.receipt-thermal { max-width: 80mm; }
+.receipt-a4 { max-width: 210mm; }

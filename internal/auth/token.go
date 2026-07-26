@@ -11,10 +11,11 @@ import (
 )
 
 type Claims struct {
-	UserID   uuid.UUID  `json:"uid"`
-	BranchID *uuid.UUID `json:"bid,omitempty"`
-	Roles    []string   `json:"roles"`
-	Type     string     `json:"type"`
+	UserID      uuid.UUID  `json:"uid"`
+	BranchID    *uuid.UUID `json:"bid,omitempty"`
+	Roles       []string   `json:"roles"`
+	Permissions []string   `json:"permissions"`
+	Type        string     `json:"type"`
 	jwt.RegisteredClaims
 }
 
@@ -27,14 +28,14 @@ func NewManager(accessSecret, refreshSecret string, accessTTL, refreshTTL time.D
 	return &Manager{[]byte(accessSecret), []byte(refreshSecret), accessTTL, refreshTTL}
 }
 
-func (m *Manager) Issue(userID uuid.UUID, branchID *uuid.UUID, roles []string) (string, string, time.Time, error) {
+func (m *Manager) Issue(userID uuid.UUID, branchID *uuid.UUID, roles, permissions []string) (string, string, time.Time, error) {
 	now := time.Now()
 	accessExpiry := now.Add(m.accessTTL)
-	access, err := m.sign(Claims{UserID: userID, BranchID: branchID, Roles: roles, Type: "access", RegisteredClaims: jwt.RegisteredClaims{ID: uuid.NewString(), Subject: userID.String(), IssuedAt: jwt.NewNumericDate(now), ExpiresAt: jwt.NewNumericDate(accessExpiry)}}, m.accessSecret)
+	access, err := m.sign(Claims{UserID: userID, BranchID: branchID, Roles: roles, Permissions: permissions, Type: "access", RegisteredClaims: jwt.RegisteredClaims{ID: uuid.NewString(), Subject: userID.String(), IssuedAt: jwt.NewNumericDate(now), ExpiresAt: jwt.NewNumericDate(accessExpiry)}}, m.accessSecret)
 	if err != nil {
 		return "", "", time.Time{}, err
 	}
-	refresh, err := m.sign(Claims{UserID: userID, BranchID: branchID, Roles: roles, Type: "refresh", RegisteredClaims: jwt.RegisteredClaims{ID: uuid.NewString(), Subject: userID.String(), IssuedAt: jwt.NewNumericDate(now), ExpiresAt: jwt.NewNumericDate(now.Add(m.refreshTTL))}}, m.refreshSecret)
+	refresh, err := m.sign(Claims{UserID: userID, BranchID: branchID, Roles: roles, Permissions: permissions, Type: "refresh", RegisteredClaims: jwt.RegisteredClaims{ID: uuid.NewString(), Subject: userID.String(), IssuedAt: jwt.NewNumericDate(now), ExpiresAt: jwt.NewNumericDate(now.Add(m.refreshTTL))}}, m.refreshSecret)
 	return access, refresh, accessExpiry, err
 }
 

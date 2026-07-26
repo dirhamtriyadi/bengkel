@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"bytes"
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
@@ -18,6 +17,7 @@ import (
 	"bengkel/internal/http/response"
 	"bengkel/internal/http/validation"
 	"bengkel/internal/model"
+	"bengkel/internal/paymentgateway"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -79,7 +79,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 	roles, permissions := h.identity(user.ID)
-	access, refresh, expiry, err := h.Tokens.Issue(user.ID, user.BranchID, roles)
+	access, refresh, expiry, err := h.Tokens.Issue(user.ID, user.BranchID, roles, permissions)
 	if err != nil {
 		serverError(c)
 		return
@@ -128,7 +128,7 @@ func (h *Handler) Refresh(c *gin.Context) {
 		return
 	}
 	roles, permissions := h.identity(user.ID)
-	access, refresh, expiry, err := h.Tokens.Issue(user.ID, user.BranchID, roles)
+	access, refresh, expiry, err := h.Tokens.Issue(user.ID, user.BranchID, roles, permissions)
 	if err != nil {
 		serverError(c)
 		return
@@ -284,8 +284,20 @@ func (h *Handler) DeleteCustomer(c *gin.Context) {
 	if !h.findScoped(c, &row) {
 		return
 	}
+	var references int64
+	h.DB.Model(&model.Vehicle{}).Where("customer_id=?", row.ID).Count(&references)
+	if references == 0 {
+		h.DB.Model(&model.WorkOrder{}).Where("customer_id=?", row.ID).Count(&references)
+	}
+	if references == 0 {
+		h.DB.Model(&model.Sale{}).Where("customer_id=?", row.ID).Count(&references)
+	}
+	if references > 0 {
+		response.Error(c, http.StatusConflict, "CUSTOMER_IN_USE", "Pelanggan memiliki kendaraan atau histori transaksi dan tidak dapat dihapus")
+		return
+	}
 	if err := h.DB.Delete(&row).Error; err != nil {
-		response.Error(c, http.StatusConflict, "CUSTOMER_IN_USE", "Pelanggan masih dipakai oleh data lain")
+		serverError(c)
 		return
 	}
 	h.audit(c, "delete", "customer", &row.ID, row, nil)
@@ -490,8 +502,19 @@ type workOrderInput struct {
 // @Success 200 {object} response.Envelope
 // @Router /work-orders [get]
 func (h *Handler) ListWorkOrders(c *gin.Context) {
-	var rows []model.WorkOrder
-	list(c, h.DB.Model(&model.WorkOrder{}).Where("branch_id=?", branchID(c)), &rows, []string{"number", "complaint", "status"})
+	type row struct {
+		model.WorkOrder
+		CustomerName      string `json:"customer_name"`
+		VehicleIdentifier string `json:"vehicle_identifier"`
+		PlateNumber       string `json:"plate_number"`
+		MechanicName      string `json:"mechanic_name"`
+	}
+	var rows []row
+	query := h.DB.Table("work_orders wo").Select("wo.*,c.name customer_name,v.identifier vehicle_identifier,v.plate_number,COALESCE(m.name,'') mechanic_name").
+		Joins("JOIN customers c ON c.id=wo.customer_id").Joins("JOIN vehicles v ON v.id=wo.vehicle_id").
+		Joins("LEFT JOIN users m ON m.id=wo.mechanic_id").
+		Where("wo.branch_id=? AND wo.deleted_at IS NULL", branchID(c))
+	list(c, query, &rows, []string{"wo.number", "wo.complaint", "wo.status", "c.name", "v.identifier", "v.plate_number", "m.name"})
 }
 
 // CreateWorkOrder godoc
@@ -547,7 +570,7 @@ func (h *Handler) AddWorkOrderItem(c *gin.Context) {
 		return
 	}
 	var product model.Product
-	if err := h.DB.First(&product, "id=? AND is_active=true", in.ProductID).Error; err != nil {
+	if err := h.DB.Where("id=? AND is_active=true AND (branch_id IS NULL OR branch_id=?)", in.ProductID, branchID(c)).First(&product).Error; err != nil {
 		response.Error(c, http.StatusNotFound, "PRODUCT_NOT_FOUND", "Produk tidak ditemukan")
 		return
 	}
@@ -557,17 +580,48 @@ func (h *Handler) AddWorkOrderItem(c *gin.Context) {
 		return
 	}
 	item := model.WorkOrderItem{WorkOrderID: wo.ID, ProductID: product.ID, Description: product.Name, Type: product.Type, Quantity: in.Quantity, UnitPrice: product.SellingPrice, UnitCost: product.CostPrice, Discount: in.Discount, Subtotal: subtotal}
-	if err := h.DB.Create(&item).Error; err != nil {
+	err := h.DB.Transaction(func(tx *gorm.DB) error {
+		if product.Type == "part" {
+			var balance model.InventoryBalance
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("branch_id=? AND product_id=?", branchID(c), product.ID).First(&balance).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return errInsufficientStock
+				}
+				return err
+			}
+			if balance.Quantity < in.Quantity {
+				return errInsufficientStock
+			}
+			if err := tx.Model(&balance).Updates(map[string]any{"quantity": gorm.Expr("quantity - ?", in.Quantity), "updated_at": time.Now()}).Error; err != nil {
+				return err
+			}
+			item.StockDeducted = true
+		}
+		if err := tx.Create(&item).Error; err != nil {
+			return err
+		}
+		if product.Type == "part" {
+			ref := item.ID
+			return tx.Create(&model.InventoryMovement{BranchID: branchID(c), ProductID: product.ID, ReferenceType: "work_order", ReferenceID: &ref, Direction: "out", Quantity: in.Quantity, UnitCost: product.CostPrice, Notes: "Pemakaian " + wo.Number, CreatedBy: userID(c)}).Error
+		}
+		return nil
+	})
+	if errors.Is(err, errInsufficientStock) {
+		response.Error(c, http.StatusConflict, "INSUFFICIENT_STOCK", "Stok barang tidak mencukupi")
+		return
+	}
+	if err != nil {
 		serverError(c)
 		return
 	}
+	h.audit(c, "add_item", "work_order", &wo.ID, nil, item)
 	response.Created(c, item)
 }
 
 type checkoutInput struct {
 	WorkOrderID   *uuid.UUID      `json:"work_order_id"`
 	CustomerID    *uuid.UUID      `json:"customer_id"`
-	Items         []workItemInput `json:"items" validate:"required,min=1,dive"`
+	Items         []workItemInput `json:"items" validate:"dive"`
 	Discount      int64           `json:"discount" validate:"min=0"`
 	Tax           int64           `json:"tax" validate:"min=0"`
 	PaymentMethod string          `json:"payment_method" validate:"required,oneof=cash midtrans"`
@@ -581,7 +635,12 @@ type checkoutResult struct {
 	PrintURL string        `json:"print_url"`
 }
 
-var errInsufficientStock = errors.New("insufficient stock")
+var (
+	errInsufficientStock = errors.New("insufficient stock")
+	errWorkOrderNotReady = errors.New("work order not ready")
+	errWorkOrderInvoiced = errors.New("work order already invoiced")
+	errWorkOrderEmpty    = errors.New("work order has no items")
+)
 
 // Checkout godoc
 // @Summary Checkout penjualan retail atau work order
@@ -600,32 +659,86 @@ func (h *Handler) Checkout(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
+	if in.WorkOrderID == nil && len(in.Items) == 0 {
+		response.Error(c, http.StatusUnprocessableEntity, "ITEMS_REQUIRED", "Pilih minimal satu barang atau jasa")
+		return
+	}
 	var sale model.Sale
 	var payment model.Payment
 	err := h.DB.Transaction(func(tx *gorm.DB) error {
-		sale = model.Sale{BranchID: branchID(c), Number: number("INV"), CustomerID: in.CustomerID, WorkOrderID: in.WorkOrderID, CashierID: userID(c), Status: "pending", Discount: in.Discount, Tax: in.Tax, Notes: in.Notes}
+		customerID := in.CustomerID
+		var workOrder *model.WorkOrder
+		var workOrderItems []model.WorkOrderItem
+		if in.WorkOrderID != nil {
+			var row model.WorkOrder
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id=? AND branch_id=?", *in.WorkOrderID, branchID(c)).First(&row).Error; err != nil {
+				return err
+			}
+			if row.Status != "completed" {
+				return errWorkOrderNotReady
+			}
+			var existing int64
+			if err := tx.Model(&model.Sale{}).Where("work_order_id=? AND status NOT IN ('void','refunded')", row.ID).Count(&existing).Error; err != nil {
+				return err
+			}
+			if existing > 0 {
+				return errWorkOrderInvoiced
+			}
+			if err := tx.Where("work_order_id=?", row.ID).Order("created_at").Find(&workOrderItems).Error; err != nil {
+				return err
+			}
+			if len(workOrderItems) == 0 {
+				return errWorkOrderEmpty
+			}
+			customerID = &row.CustomerID
+			workOrder = &row
+		}
+		sale = model.Sale{BranchID: branchID(c), Number: number("INV"), CustomerID: customerID, WorkOrderID: in.WorkOrderID, CashierID: userID(c), Status: "pending", Discount: in.Discount, Tax: in.Tax, Notes: in.Notes}
 		if err := tx.Create(&sale).Error; err != nil {
 			return err
 		}
 		var subtotal, cogs int64
-		for _, requested := range in.Items {
-			var product model.Product
-			if err := tx.First(&product, "id=? AND is_active=true", requested.ProductID).Error; err != nil {
-				return err
-			}
-			line := int64(math.Round(float64(product.SellingPrice)*requested.Quantity)) - requested.Discount
-			if line < 0 {
-				return fmt.Errorf("invalid discount")
-			}
-			item := model.SaleItem{SaleID: sale.ID, ProductID: product.ID, Description: product.Name, Type: product.Type, Quantity: requested.Quantity, UnitPrice: product.SellingPrice, UnitCost: product.CostPrice, Discount: requested.Discount, Subtotal: line}
-			if err := tx.Create(&item).Error; err != nil {
-				return err
-			}
-			subtotal += line
-			cogs += int64(math.Round(float64(product.CostPrice) * requested.Quantity))
-			if product.Type == "part" {
-				if err := h.consumeStock(tx, sale.ID, product, requested.Quantity, c); err != nil {
+		if workOrder != nil {
+			for _, used := range workOrderItems {
+				item := model.SaleItem{SaleID: sale.ID, ProductID: used.ProductID, Description: used.Description, Type: used.Type, Quantity: used.Quantity, UnitPrice: used.UnitPrice, UnitCost: used.UnitCost, Discount: used.Discount, Subtotal: used.Subtotal}
+				if err := tx.Create(&item).Error; err != nil {
 					return err
+				}
+				subtotal += used.Subtotal
+				cogs += int64(math.Round(float64(used.UnitCost) * used.Quantity))
+				if used.Type == "part" && !used.StockDeducted {
+					var product model.Product
+					if err := tx.First(&product, "id=?", used.ProductID).Error; err != nil {
+						return err
+					}
+					if err := h.consumeStock(tx, sale.ID, product, used.Quantity, c); err != nil {
+						return err
+					}
+					if err := tx.Model(&used).Update("stock_deducted", true).Error; err != nil {
+						return err
+					}
+				}
+			}
+		} else {
+			for _, requested := range in.Items {
+				var product model.Product
+				if err := tx.Where("id=? AND is_active=true AND (branch_id IS NULL OR branch_id=?)", requested.ProductID, branchID(c)).First(&product).Error; err != nil {
+					return err
+				}
+				line := int64(math.Round(float64(product.SellingPrice)*requested.Quantity)) - requested.Discount
+				if line < 0 {
+					return fmt.Errorf("invalid discount")
+				}
+				item := model.SaleItem{SaleID: sale.ID, ProductID: product.ID, Description: product.Name, Type: product.Type, Quantity: requested.Quantity, UnitPrice: product.SellingPrice, UnitCost: product.CostPrice, Discount: requested.Discount, Subtotal: line}
+				if err := tx.Create(&item).Error; err != nil {
+					return err
+				}
+				subtotal += line
+				cogs += int64(math.Round(float64(product.CostPrice) * requested.Quantity))
+				if product.Type == "part" {
+					if err := h.consumeStock(tx, sale.ID, product, requested.Quantity, c); err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -635,6 +748,9 @@ func (h *Handler) Checkout(c *gin.Context) {
 		}
 		fee := int64(0)
 		if in.PaymentMethod == "midtrans" {
+			if grand < 1 {
+				return fmt.Errorf("total Midtrans minimal Rp1")
+			}
 			fee = int64(math.Ceil(float64(grand) * 0.007))
 			if in.FeeBearer == "customer" {
 				grand += fee
@@ -671,6 +787,11 @@ func (h *Handler) Checkout(c *gin.Context) {
 		if err := tx.Create(&payment).Error; err != nil {
 			return err
 		}
+		if workOrder != nil {
+			if err := tx.Model(workOrder).Update("status", "invoiced").Error; err != nil {
+				return err
+			}
+		}
 		if status == "paid" {
 			return h.postSaleJournal(tx, sale, cogs, payment.FeeBearer)
 		}
@@ -678,6 +799,18 @@ func (h *Handler) Checkout(c *gin.Context) {
 	})
 	if errors.Is(err, errInsufficientStock) {
 		response.Error(c, http.StatusConflict, "INSUFFICIENT_STOCK", "Stok salah satu barang tidak mencukupi")
+		return
+	}
+	if errors.Is(err, errWorkOrderNotReady) {
+		response.Error(c, http.StatusConflict, "WORK_ORDER_NOT_READY", "Work order harus berstatus completed sebelum checkout")
+		return
+	}
+	if errors.Is(err, errWorkOrderInvoiced) {
+		response.Error(c, http.StatusConflict, "WORK_ORDER_INVOICED", "Work order sudah memiliki transaksi aktif")
+		return
+	}
+	if errors.Is(err, errWorkOrderEmpty) {
+		response.Error(c, http.StatusConflict, "WORK_ORDER_EMPTY", "Work order belum memiliki barang atau jasa")
 		return
 	}
 	if err != nil {
@@ -712,7 +845,7 @@ func (h *Handler) postSaleJournal(tx *gorm.DB, sale model.Sale, cogs int64, feeB
 	if len(accounts) < 5 {
 		return errors.New("chart of accounts is incomplete")
 	}
-	entry := model.JournalEntry{BranchID: sale.BranchID, Number: number("JE"), EntryDate: time.Now(), Description: "Penjualan " + sale.Number, ReferenceType: "sale", ReferenceID: &sale.ID, Status: "posted", CreatedBy: sale.CashierID}
+	entry := model.JournalEntry{BranchID: sale.BranchID, Number: number("JE"), EntryDate: time.Now(), Description: "Penjualan " + sale.Number, ReferenceType: "sale", ReferenceID: &sale.ID, Status: "draft", CreatedBy: sale.CashierID}
 	if err := tx.Create(&entry).Error; err != nil {
 		return err
 	}
@@ -733,7 +866,10 @@ func (h *Handler) postSaleJournal(tx *gorm.DB, sale model.Sale, cogs int64, feeB
 	if sale.GatewayFee > 0 {
 		lines = append(lines, model.JournalLine{JournalEntryID: entry.ID, AccountID: accounts["5202"], Description: "Beban payment gateway (" + feeBearer + ")", Debit: sale.GatewayFee})
 	}
-	return tx.Create(&lines).Error
+	if err := tx.Create(&lines).Error; err != nil {
+		return err
+	}
+	return tx.Model(&entry).Update("status", "posted").Error
 }
 
 // ListSales godoc
@@ -796,50 +932,44 @@ func (h *Handler) CreateMidtransSnap(c *gin.Context) {
 		response.OK(c, gin.H{"token": token, "redirect_url": payment.Metadata["redirect_url"]})
 		return
 	}
-	endpoint := "https://app.sandbox.midtrans.com/snap/v1/transactions"
+
+	var sale model.Sale
+	if err := h.DB.Where("id=? AND branch_id=?", payment.SaleID, branchID(c)).First(&sale).Error; err != nil {
+		serverError(c)
+		return
+	}
+	var customer model.Customer
+	if sale.CustomerID != nil {
+		_ = h.DB.Where("id=? AND branch_id=?", *sale.CustomerID, branchID(c)).First(&customer).Error
+	}
+
+	gateway := paymentgateway.NewMidtrans(h.Config.MidtransServerKey, h.Config.MidtransIsProduction)
+	result, err := gateway.CreateSnap(c.Request.Context(), paymentgateway.SnapInput{
+		IdempotencyKey: payment.ID.String(),
+		OrderID:        payment.ProviderReference,
+		Amount:         payment.Amount,
+		ItemID:         payment.SaleID.String(),
+		ItemName:       "Pembayaran " + payment.ProviderReference,
+		CustomerName:   customer.Name,
+		CustomerEmail:  customer.Email,
+		CustomerPhone:  customer.Phone,
+		FinishURL:      strings.TrimRight(h.Config.FrontendURL, "/") + "/print/receipt/" + sale.ID.String(),
+	})
+	if err != nil {
+		response.Error(c, http.StatusBadGateway, "MIDTRANS_REJECTED", "Midtrans menolak pembuatan transaksi: "+err.Error())
+		return
+	}
+	environment := "sandbox"
 	if h.Config.MidtransIsProduction {
-		endpoint = "https://app.midtrans.com/snap/v1/transactions"
+		environment = "production"
 	}
-	payload := map[string]any{
-		"transaction_details": map[string]any{"order_id": payment.ProviderReference, "gross_amount": payment.Amount},
-		"item_details":        []map[string]any{{"id": payment.SaleID.String(), "price": payment.Amount, "quantity": 1, "name": "Pembayaran " + payment.ProviderReference}},
-		"callbacks":           map[string]any{"finish": h.Config.FrontendURL + "/dashboard/sales"},
-	}
-	raw, err := json.Marshal(payload)
-	if err != nil {
-		serverError(c)
-		return
-	}
-	request, err := http.NewRequestWithContext(c.Request.Context(), http.MethodPost, endpoint, bytes.NewReader(raw))
-	if err != nil {
-		serverError(c)
-		return
-	}
-	request.Header.Set("Content-Type", "application/json")
-	request.SetBasicAuth(h.Config.MidtransServerKey, "")
-	client := &http.Client{Timeout: 12 * time.Second}
-	upstream, err := client.Do(request)
-	if err != nil {
-		response.Error(c, http.StatusBadGateway, "MIDTRANS_UNAVAILABLE", "Midtrans tidak dapat dihubungi")
-		return
-	}
-	defer upstream.Body.Close()
-	var result struct {
-		Token         string `json:"token"`
-		RedirectURL   string `json:"redirect_url"`
-		StatusMessage string `json:"status_message"`
-	}
-	if err := json.NewDecoder(upstream.Body).Decode(&result); err != nil || upstream.StatusCode >= 300 || result.Token == "" {
-		response.Error(c, http.StatusBadGateway, "MIDTRANS_REJECTED", "Midtrans menolak pembuatan transaksi: "+result.StatusMessage)
-		return
-	}
-	payment.Metadata = map[string]any{"snap_token": result.Token, "redirect_url": result.RedirectURL}
+	payment.Metadata = map[string]any{"snap_token": result.Token, "redirect_url": result.RedirectURL, "environment": environment, "sdk": "midtrans-go"}
 	if err := h.DB.Model(&payment).Update("metadata", payment.Metadata).Error; err != nil {
 		serverError(c)
 		return
 	}
 	h.audit(c, "create_snap", "payment", &payment.ID, nil, map[string]any{"order_id": payment.ProviderReference})
-	response.OK(c, gin.H{"token": result.Token, "redirect_url": result.RedirectURL})
+	response.OK(c, gin.H{"token": result.Token, "redirect_url": result.RedirectURL, "environment": environment})
 }
 
 // Dashboard godoc
@@ -915,11 +1045,14 @@ func (h *Handler) ProfitLoss(c *gin.Context) {
 // @Security BearerAuth
 // @Produce json
 // @Param account_id query string false "Filter account ID"
+// @Param from query string false "Tanggal mulai YYYY-MM-DD"
+// @Param to query string false "Tanggal akhir YYYY-MM-DD"
 // @Success 200 {object} response.Envelope
 // @Router /reports/general-ledger [get]
 func (h *Handler) GeneralLedger(c *gin.Context) {
 	account := c.Query("account_id")
-	query := h.DB.Table("journal_lines jl").Select("jl.*,je.number journal_number,je.entry_date,je.description journal_description,a.code account_code,a.name account_name").Joins("JOIN journal_entries je ON je.id=jl.journal_entry_id").Joins("JOIN accounts a ON a.id=jl.account_id").Where("je.branch_id=? AND je.status='posted'", branchID(c))
+	from, to := reportPeriod(c)
+	query := h.DB.Table("journal_lines jl").Select("jl.*,je.number journal_number,je.entry_date,je.description journal_description,a.code account_code,a.name account_name").Joins("JOIN journal_entries je ON je.id=jl.journal_entry_id").Joins("JOIN accounts a ON a.id=jl.account_id").Where("je.branch_id=? AND je.status='posted' AND je.entry_date BETWEEN ? AND ?", branchID(c), from, to)
 	if account != "" {
 		query = query.Where("jl.account_id=?", account)
 	}
@@ -1054,6 +1187,52 @@ type midtransNotification struct {
 	TransactionID     string `json:"transaction_id"`
 }
 
+var (
+	errMidtransStatusInvalid  = errors.New("invalid Midtrans status")
+	errMidtransAmountMismatch = errors.New("Midtrans amount mismatch")
+	errMidtransNotStarted     = errors.New("Midtrans transaction not started")
+)
+
+// SyncMidtransPayment godoc
+// @Summary Sinkronkan status pembayaran langsung ke Midtrans
+// @Description Berguna setelah callback Snap dan saat notification URL tidak dapat menjangkau localhost.
+// @Tags Payments
+// @Security BearerAuth
+// @Produce json
+// @Param id path string true "Payment ID"
+// @Success 200 {object} response.Envelope
+// @Router /payments/{id}/midtrans/sync [post]
+func (h *Handler) SyncMidtransPayment(c *gin.Context) {
+	if h.Config.MidtransServerKey == "" {
+		response.Error(c, http.StatusServiceUnavailable, "MIDTRANS_NOT_CONFIGURED", "Kunci server Midtrans belum dikonfigurasi")
+		return
+	}
+	var payment model.Payment
+	if !h.findScoped(c, &payment) {
+		return
+	}
+	if payment.Method != "midtrans" {
+		response.Error(c, http.StatusUnprocessableEntity, "PAYMENT_NOT_MIDTRANS", "Pembayaran ini bukan transaksi Midtrans")
+		return
+	}
+
+	transaction, err := h.checkMidtransTransaction(c, payment)
+	if err != nil {
+		if errors.Is(err, errMidtransNotStarted) {
+			response.OK(c, gin.H{"status": "pending", "already_processed": true, "not_started": true})
+			return
+		}
+		h.respondMidtransStatusError(c, err)
+		return
+	}
+	status, alreadyProcessed, err := h.applyMidtransTransaction(c, payment, transaction)
+	if err != nil {
+		serverError(c)
+		return
+	}
+	response.OK(c, gin.H{"status": status, "already_processed": alreadyProcessed})
+}
+
 func (h *Handler) MidtransNotification(c *gin.Context) {
 	var in midtransNotification
 	if !bind(c, &in) {
@@ -1069,19 +1248,71 @@ func (h *Handler) MidtransNotification(c *gin.Context) {
 		response.Error(c, http.StatusNotFound, "PAYMENT_NOT_FOUND", "Pembayaran tidak ditemukan")
 		return
 	}
+
+	transaction, err := h.checkMidtransTransaction(c, payment)
+	if err != nil {
+		h.respondMidtransStatusError(c, err)
+		return
+	}
+	status, alreadyProcessed, err := h.applyMidtransTransaction(c, payment, transaction)
+	if err != nil {
+		serverError(c)
+		return
+	}
+	response.OK(c, gin.H{"message": "Notification processed", "status": status, "already_processed": alreadyProcessed})
+}
+
+func (h *Handler) checkMidtransTransaction(c *gin.Context, payment model.Payment) (*paymentgateway.TransactionStatus, error) {
+	gateway := paymentgateway.NewMidtrans(h.Config.MidtransServerKey, h.Config.MidtransIsProduction)
+	transaction, err := gateway.CheckTransaction(c.Request.Context(), payment.ProviderReference)
+	if err != nil {
+		var providerError *paymentgateway.Error
+		if errors.As(err, &providerError) && providerError.StatusCode == http.StatusNotFound {
+			return nil, errMidtransNotStarted
+		}
+		return nil, fmt.Errorf("check Midtrans transaction: %w", err)
+	}
+	if transaction == nil || transaction.OrderID != payment.ProviderReference {
+		return nil, errMidtransStatusInvalid
+	}
+	grossAmount, err := strconv.ParseFloat(transaction.GrossAmount, 64)
+	if err != nil || int64(math.Round(grossAmount)) != payment.Amount {
+		return nil, errMidtransAmountMismatch
+	}
+	return transaction, nil
+}
+
+func (h *Handler) respondMidtransStatusError(c *gin.Context, err error) {
+	if errors.Is(err, errMidtransStatusInvalid) {
+		response.Error(c, http.StatusBadGateway, "MIDTRANS_STATUS_INVALID", "Respons status transaksi Midtrans tidak valid")
+		return
+	}
+	if errors.Is(err, errMidtransAmountMismatch) {
+		response.Error(c, http.StatusConflict, "MIDTRANS_AMOUNT_MISMATCH", "Nominal transaksi Midtrans tidak sesuai dengan tagihan")
+		return
+	}
+	response.Error(c, http.StatusBadGateway, "MIDTRANS_STATUS_UNAVAILABLE", "Status transaksi Midtrans tidak dapat diverifikasi: "+err.Error())
+}
+
+func (h *Handler) applyMidtransTransaction(c *gin.Context, payment model.Payment, transaction *paymentgateway.TransactionStatus) (string, bool, error) {
 	status := "pending"
-	if (in.TransactionStatus == "capture" && in.FraudStatus == "accept") || in.TransactionStatus == "settlement" {
+	if (transaction.TransactionStatus == "capture" && transaction.FraudStatus == "accept") || transaction.TransactionStatus == "settlement" {
 		status = "paid"
-	} else if in.TransactionStatus == "deny" || in.TransactionStatus == "cancel" || in.TransactionStatus == "expire" {
+	} else if transaction.TransactionStatus == "deny" || transaction.TransactionStatus == "cancel" || transaction.TransactionStatus == "expire" {
 		status = "failed"
 	}
 	if payment.Status == status {
-		response.OK(c, gin.H{"message": "Notification already processed"})
-		return
+		return status, true, nil
 	}
 	err := h.DB.Transaction(func(tx *gorm.DB) error {
 		now := time.Now()
-		updates := map[string]any{"status": status, "provider_reference": in.OrderID, "metadata": map[string]any{"transaction_id": in.TransactionID, "transaction_status": in.TransactionStatus}}
+		metadata := payment.Metadata
+		if metadata == nil {
+			metadata = map[string]any{}
+		}
+		metadata["transaction_id"] = transaction.TransactionID
+		metadata["transaction_status"] = transaction.TransactionStatus
+		updates := map[string]any{"status": status, "provider_reference": transaction.OrderID, "metadata": metadata}
 		if status == "paid" {
 			updates["paid_at"] = now
 		}
@@ -1108,13 +1339,19 @@ func (h *Handler) MidtransNotification(c *gin.Context) {
 			}
 			return h.postSaleJournal(tx, sale, cogs, payment.FeeBearer)
 		}
-		return tx.Model(&model.Sale{}).Where("id=? AND status='pending'", payment.SaleID).Update("status", "void").Error
+		var sale model.Sale
+		if err := tx.First(&sale, "id=?", payment.SaleID).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&sale).Where("status='pending'").Update("status", "void").Error; err != nil {
+			return err
+		}
+		if sale.WorkOrderID != nil {
+			return tx.Model(&model.WorkOrder{}).Where("id=? AND status='invoiced'", *sale.WorkOrderID).Update("status", "completed").Error
+		}
+		return nil
 	})
-	if err != nil {
-		serverError(c)
-		return
-	}
-	response.OK(c, gin.H{"message": "Notification processed"})
+	return status, false, err
 }
 
 func bind(c *gin.Context, dst any) bool {

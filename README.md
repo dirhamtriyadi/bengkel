@@ -34,6 +34,15 @@ Seeder dijalankan oleh service `seed` dan aman diulang. Akun demo memakai kata s
 | Kasir | `kasir@bengkel.local` |
 | Montir | `montir@bengkel.local` |
 
+Setelah menarik perubahan yang menambah migration atau permission, jalankan:
+
+```bash
+docker compose up -d --build
+docker compose run --rm seed
+```
+
+Kemudian logout dan login kembali agar JWT memuat permission terbaru.
+
 ## Menjalankan tanpa Docker
 
 PostgreSQL harus aktif, kemudian:
@@ -73,7 +82,19 @@ Kasir menerima motor
 
 Penjualan barang langsung masuk melalui POS tanpa work order. Semua harga disimpan sebagai integer rupiah untuk menghindari masalah floating point. Kuantitas memakai `numeric(15,3)`.
 
-Transaksi checkout mengunci `inventory_balances` dengan `SELECT ... FOR UPDATE`, menolak stok negatif, membuat inventory movement, sale, payment, dan jurnal dalam transaksi database. Jurnal yang sudah `posted` serta audit log dibuat immutable oleh trigger database. Constraint deferred memastikan total debit dan kredit seimbang saat commit.
+Alur servis dapat dijalankan dari dashboard:
+
+1. Buka **Operasional → Penerimaan & servis**, lalu pilih **Terima motor**.
+2. Gunakan motor terdaftar atau isi pelanggan dan identitas motor baru.
+3. Buka work order, pilih montir, isi diagnosis, lalu selesaikan tahap pemeriksaan.
+4. Tambahkan barang yang diambil montir dan jasa yang dikerjakan. Stok barang langsung berkurang; menghapus item mengembalikan stok.
+5. Jalankan status `inspection → approval → in_progress → completed`.
+6. Pilih **Bayar work order**, lalu selesaikan pembayaran cash atau Midtrans.
+7. Setelah pembayaran berhasil, sale, payment, jurnal, HPP, dan bukti transaksi tersedia. Receipt dapat dicetak sebagai thermal 80 mm atau A4.
+
+Penjualan retail tetap dapat dilakukan langsung melalui **Kasir / POS** tanpa work order.
+
+Transaksi checkout mengunci `inventory_balances` dengan `SELECT ... FOR UPDATE`, menolak stok negatif, membuat inventory movement, sale, payment, dan jurnal dalam transaksi database. Untuk work order, barang dikurangi saat montir mengambil item dan tidak dikurangi ulang ketika checkout. Jurnal yang sudah `posted` beserta barisnya dan audit log dibuat immutable oleh trigger database. Constraint deferred memastikan total debit dan kredit seimbang saat commit.
 
 Chart of accounts awal:
 
@@ -141,20 +162,33 @@ Semua tabel master/transaksi memakai komponen yang sama dengan pencarian server-
 ## Otorisasi
 
 - RBAC: `owner`, `manager`, `cashier`, `mechanic`; permission granular tersimpan di database.
+- Pengelolaan: owner dapat CRUD pengguna, cabang, role, dan mapping permission dari dashboard.
+- Enforcement: permission dibawa dalam access token dan diperiksa per endpoint; navigasi frontend memakai permission yang sama dari `/auth/me`.
 - ABAC: JWT membawa cabang aktif, setiap query bisnis wajib branch-scoped. Header `X-Branch-ID` hanya dapat mengganti scope bagi owner.
 - Audit: create/update/delete/checkout/stock adjustment/login disimpan beserta user, cabang, IP, user-agent, request ID, dan snapshot.
 
 Struktur ini tetap single tenant. Jika nanti menjadi SaaS, tambahkan `tenant_id` sebagai policy boundary dan PostgreSQL Row-Level Security tanpa mengubah konsep `branch_id`.
 
+## Modul akuntansi
+
+- COA per cabang dengan klasifikasi aset, liabilitas, ekuitas, pendapatan, dan beban.
+- Jurnal manual melalui lifecycle `draft → posted`; jurnal posted dan barisnya immutable pada level database.
+- Koreksi jurnal posted memakai reversal entry, bukan edit atau delete histori.
+- Seeder membuat `OPENING-001` yang seimbang agar jurnal, buku besar, neraca saldo, dan neraca langsung memiliki saldo awal.
+- Payment register untuk cash/Midtrans, status provider, fee, penanggung fee, dan referensi settlement.
+- Laporan laba rugi, neraca saldo, posisi keuangan, arus kas, buku besar, penjualan, dan nilai persediaan.
+
 ## Midtrans
 
-Isi `MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY`, dan `MIDTRANS_IS_PRODUCTION`. Notification URL:
+Backend memakai SDK resmi [`github.com/midtrans/midtrans-go`](https://github.com/Midtrans/midtrans-go) untuk membuat transaksi Snap dan memverifikasi status transaksi. Isi `MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY`, dan `MIDTRANS_IS_PRODUCTION`. Untuk sandbox gunakan `MIDTRANS_IS_PRODUCTION=false` dan pastikan kedua key sama-sama berawalan `SB-Mid-`.
+
+Notification URL:
 
 ```text
 POST https://api.example.com/api/v1/payments/midtrans/notification
 ```
 
-Webhook memverifikasi SHA-512 signature, idempotent terhadap status yang sama, lalu mem-posting sale dan jurnal hanya setelah `settlement` atau `capture` yang diterima. Beban fee disimpan per pembayaran dengan `fee_bearer`: `merchant`, `customer`, atau `split`. Konfigurasi default per cabang berada di `payment.midtrans.fee_bearer`.
+Webhook memverifikasi SHA-512 signature dan mengecek ulang status serta nominal transaksi ke API Midtrans. Prosesnya idempotent terhadap status yang sama, lalu mem-posting sale dan jurnal hanya setelah `settlement` atau `capture` yang diterima. Beban fee disimpan per pembayaran dengan `fee_bearer`: `merchant`, `customer`, atau `split`. Konfigurasi default per cabang berada di `payment.midtrans.fee_bearer`.
 
 ## Deploy Jenkins
 

@@ -12,6 +12,142 @@
     },
     "basePath": "/api/v1",
     "paths": {
+        "/accounts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Accounting"
+                ],
+                "summary": "Daftar chart of accounts",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Accounting"
+                ],
+                "summary": "Tambah akun COA",
+                "parameters": [
+                    {
+                        "description": "Akun",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handler.accountInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/accounts/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Accounting"
+                ],
+                "summary": "Ubah akun COA",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID akun",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Akun",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handler.accountInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Accounting"
+                ],
+                "summary": "Hapus akun yang belum digunakan",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID akun",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
         "/audit-logs": {
             "get": {
                 "security": [
@@ -157,6 +293,111 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/internal_http_handler.refreshInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/branches": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Branches"
+                ],
+                "summary": "Daftar cabang",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Branches"
+                ],
+                "summary": "Tambah cabang",
+                "parameters": [
+                    {
+                        "description": "Cabang",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handler.branchInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/branches/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Branches"
+                ],
+                "summary": "Ubah cabang",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID cabang",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Cabang",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handler.branchInput"
                         }
                     }
                 ],
@@ -445,6 +686,320 @@
                 }
             }
         },
+        "/inventory/movements": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Riwayat pergerakan persediaan",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/journals": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Accounting"
+                ],
+                "summary": "Daftar journal entry",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Accounting"
+                ],
+                "summary": "Buat jurnal manual sebagai draft",
+                "parameters": [
+                    {
+                        "description": "Journal entry",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handler.journalInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/journals/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Accounting"
+                ],
+                "summary": "Detail journal entry dan baris",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID jurnal",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Accounting"
+                ],
+                "summary": "Ubah jurnal draft",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID jurnal",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Journal entry",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handler.journalInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Accounting"
+                ],
+                "summary": "Hapus jurnal draft",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID jurnal",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/journals/{id}/post": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Accounting"
+                ],
+                "summary": "Posting jurnal secara immutable",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID jurnal",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/journals/{id}/reverse": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Accounting"
+                ],
+                "summary": "Buat jurnal pembalik",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID jurnal",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/payments": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Daftar pembayaran",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/payments/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Detail pembayaran",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID pembayaran",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
         "/payments/{id}/midtrans/snap": {
             "post": {
                 "security": [
@@ -477,6 +1032,64 @@
                     },
                     "422": {
                         "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/payments/{id}/midtrans/sync": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Berguna setelah callback Snap dan saat notification URL tidak dapat menjangkau localhost.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Sinkronkan status pembayaran langsung ke Midtrans",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Payment ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/permissions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authorization"
+                ],
+                "summary": "Katalog permission",
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
                         }
@@ -544,6 +1157,82 @@
                 }
             }
         },
+        "/products/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Ubah barang atau jasa",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Produk",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handler.productInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Nonaktifkan produk yang sudah pernah dipakai",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
         "/public/pages/{slug}": {
             "get": {
                 "produces": [
@@ -591,6 +1280,54 @@
                 }
             }
         },
+        "/reports/balance-sheet": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Laporan posisi keuangan",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/reports/cash-flow": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Laporan arus kas",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
         "/reports/general-ledger": {
             "get": {
                 "security": [
@@ -611,8 +1348,44 @@
                         "description": "Filter account ID",
                         "name": "account_id",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal mulai YYYY-MM-DD",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tanggal akhir YYYY-MM-DD",
+                        "name": "to",
+                        "in": "query"
                     }
                 ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/reports/inventory-valuation": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Laporan nilai persediaan",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -649,6 +1422,190 @@
                         "description": "Tanggal akhir YYYY-MM-DD",
                         "name": "to",
                         "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/reports/sales": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Laporan penjualan per hari dan metode",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/reports/trial-balance": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Laporan neraca saldo",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/roles": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authorization"
+                ],
+                "summary": "Daftar role beserta permission",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authorization"
+                ],
+                "summary": "Tambah role dan permission",
+                "parameters": [
+                    {
+                        "description": "Role",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handler.roleInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/roles/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authorization"
+                ],
+                "summary": "Ubah role dan sinkronkan permission",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID role",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Role",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handler.roleInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authorization"
+                ],
+                "summary": "Hapus role yang tidak digunakan",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID role",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -793,6 +1750,142 @@
                 }
             }
         },
+        "/users": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Daftar pengguna dan role",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Tambah pengguna",
+                "parameters": [
+                    {
+                        "description": "Pengguna",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handler.userInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Ubah pengguna dan sinkronkan role",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID pengguna",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Pengguna",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handler.userUpdateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Hapus pengguna",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID pengguna",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
         "/vehicles": {
             "get": {
                 "security": [
@@ -846,6 +1939,82 @@
                 "responses": {
                     "201": {
                         "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/vehicles/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vehicles"
+                ],
+                "summary": "Ubah data kendaraan",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Vehicle ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Kendaraan",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handler.vehicleInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vehicles"
+                ],
+                "summary": "Hapus kendaraan yang belum memiliki work order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Vehicle ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
                         }
@@ -913,6 +2082,144 @@
                 }
             }
         },
+        "/work-orders/intake": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Work Orders"
+                ],
+                "summary": "Terima motor baru atau kendaraan terdaftar",
+                "parameters": [
+                    {
+                        "description": "Penerimaan motor",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handler.intakeInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/work-orders/options/mechanics": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Work Orders"
+                ],
+                "summary": "Daftar montir aktif pada cabang",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/work-orders/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Work Orders"
+                ],
+                "summary": "Detail pekerjaan, motor, pelanggan, dan item terpakai",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Work order ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Work Orders"
+                ],
+                "summary": "Perbarui diagnosis, montir, dan status pekerjaan",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Work order ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Pekerjaan",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handler.workOrderUpdateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
         "/work-orders/{id}/items": {
             "post": {
                 "security": [
@@ -951,6 +2258,46 @@
                 "responses": {
                     "201": {
                         "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/work-orders/{id}/items/{item_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Work Orders"
+                ],
+                "summary": "Hapus item dan kembalikan stok barang",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Work order ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Item ID",
+                        "name": "item_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
                         }
@@ -1023,11 +2370,82 @@
                 }
             }
         },
+        "internal_http_handler.accountInput": {
+            "type": "object",
+            "required": [
+                "code",
+                "is_active",
+                "name",
+                "type"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "maxLength": 30
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 150
+                },
+                "parent_id": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "asset",
+                        "liability",
+                        "equity",
+                        "revenue",
+                        "expense"
+                    ]
+                }
+            }
+        },
+        "internal_http_handler.branchInput": {
+            "type": "object",
+            "required": [
+                "code",
+                "currency",
+                "is_active",
+                "name",
+                "timezone"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string",
+                    "maxLength": 30
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 150
+                },
+                "phone": {
+                    "type": "string",
+                    "maxLength": 30
+                },
+                "timezone": {
+                    "type": "string",
+                    "maxLength": 60
+                }
+            }
+        },
         "internal_http_handler.checkoutInput": {
             "type": "object",
             "required": [
                 "fee_bearer",
-                "items",
                 "payment_method"
             ],
             "properties": {
@@ -1052,7 +2470,6 @@
                 },
                 "items": {
                     "type": "array",
-                    "minItems": 1,
                     "items": {
                         "$ref": "#/definitions/internal_http_handler.workItemInput"
                     }
@@ -1103,6 +2520,137 @@
                 "phone": {
                     "type": "string",
                     "maxLength": 30
+                }
+            }
+        },
+        "internal_http_handler.intakeCustomerInput": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 150
+                },
+                "phone": {
+                    "type": "string",
+                    "maxLength": 30
+                }
+            }
+        },
+        "internal_http_handler.intakeInput": {
+            "type": "object",
+            "required": [
+                "complaint"
+            ],
+            "properties": {
+                "complaint": {
+                    "type": "string",
+                    "maxLength": 1000
+                },
+                "customer": {
+                    "$ref": "#/definitions/internal_http_handler.intakeCustomerInput"
+                },
+                "customer_id": {
+                    "type": "string"
+                },
+                "mechanic_id": {
+                    "type": "string"
+                },
+                "odometer": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "vehicle": {
+                    "$ref": "#/definitions/internal_http_handler.intakeVehicleInput"
+                },
+                "vehicle_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_http_handler.intakeVehicleInput": {
+            "type": "object",
+            "required": [
+                "identifier"
+            ],
+            "properties": {
+                "brand": {
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "color": {
+                    "type": "string",
+                    "maxLength": 50
+                },
+                "identifier": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "model": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "plate_number": {
+                    "type": "string",
+                    "maxLength": 30
+                },
+                "year": {
+                    "type": "integer",
+                    "minimum": 0
+                }
+            }
+        },
+        "internal_http_handler.journalInput": {
+            "type": "object",
+            "required": [
+                "description",
+                "entry_date",
+                "lines"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "entry_date": {
+                    "type": "string"
+                },
+                "lines": {
+                    "type": "array",
+                    "minItems": 2,
+                    "items": {
+                        "$ref": "#/definitions/internal_http_handler.journalLineInput"
+                    }
+                }
+            }
+        },
+        "internal_http_handler.journalLineInput": {
+            "type": "object",
+            "required": [
+                "account_id"
+            ],
+            "properties": {
+                "account_id": {
+                    "type": "string"
+                },
+                "credit": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "debit": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "description": {
+                    "type": "string"
                 }
             }
         },
@@ -1179,6 +2727,34 @@
                 }
             }
         },
+        "internal_http_handler.roleInput": {
+            "type": "object",
+            "required": [
+                "code",
+                "name",
+                "permission_ids"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "maxLength": 60
+                },
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "permission_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "internal_http_handler.stockInput": {
             "type": "object",
             "required": [
@@ -1208,6 +2784,87 @@
                 "unit_cost": {
                     "type": "integer",
                     "minimum": 0
+                }
+            }
+        },
+        "internal_http_handler.userInput": {
+            "type": "object",
+            "required": [
+                "email",
+                "is_active",
+                "name",
+                "password",
+                "role_ids"
+            ],
+            "properties": {
+                "branch_id": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 150
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 8
+                },
+                "phone": {
+                    "type": "string",
+                    "maxLength": 30
+                },
+                "role_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_http_handler.userUpdateInput": {
+            "type": "object",
+            "required": [
+                "email",
+                "is_active",
+                "name",
+                "role_ids"
+            ],
+            "properties": {
+                "branch_id": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 150
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 8
+                },
+                "phone": {
+                    "type": "string",
+                    "maxLength": 30
+                },
+                "role_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -1294,6 +2951,31 @@
                 },
                 "vehicle_id": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_http_handler.workOrderUpdateInput": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "diagnosis": {
+                    "type": "string",
+                    "maxLength": 3000
+                },
+                "mechanic_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "inspection",
+                        "approval",
+                        "in_progress",
+                        "completed",
+                        "cancelled"
+                    ]
                 }
             }
         }

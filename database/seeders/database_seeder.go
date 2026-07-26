@@ -38,6 +38,9 @@ func Run(db *gorm.DB) error {
 		if err := inventorySeeder(tx, branch, users[0], products); err != nil {
 			return fmt.Errorf("InventorySeeder: %w", err)
 		}
+		if err := openingJournalSeeder(tx, branch, users[0], products); err != nil {
+			return fmt.Errorf("OpeningJournalSeeder: %w", err)
+		}
 		if err := customerVehicleSeeder(tx, branch); err != nil {
 			return fmt.Errorf("CustomerVehicleSeeder: %w", err)
 		}
@@ -58,7 +61,7 @@ func branchSeeder(tx *gorm.DB) (model.Branch, error) {
 }
 
 func rolePermissionSeeder(tx *gorm.DB) error {
-	permissions := []string{"dashboard.read", "customer.read", "customer.write", "vehicle.read", "vehicle.write", "product.read", "product.write", "inventory.read", "inventory.adjust", "work_order.read", "work_order.write", "sale.read", "sale.create", "payment.manage", "accounting.read", "accounting.write", "report.read", "cms.manage", "user.manage", "audit.read", "settings.manage"}
+	permissions := []string{"dashboard.read", "branch.manage", "customer.read", "customer.write", "vehicle.read", "vehicle.write", "product.read", "product.write", "inventory.read", "inventory.adjust", "work_order.read", "work_order.write", "sale.read", "sale.create", "payment.read", "payment.manage", "accounting.read", "accounting.write", "report.read", "cms.manage", "user.manage", "role.manage", "audit.read", "settings.manage"}
 	for _, code := range permissions {
 		row := model.Permission{Base: model.Base{ID: stable("permission-" + code)}, Code: code, Name: code}
 		if err := upsert(tx, &row, []string{"name", "updated_at"}); err != nil {
@@ -67,8 +70,8 @@ func rolePermissionSeeder(tx *gorm.DB) error {
 	}
 	roles := map[string][]string{
 		"owner":    permissions,
-		"manager":  {"dashboard.read", "customer.read", "customer.write", "vehicle.read", "vehicle.write", "product.read", "product.write", "inventory.read", "inventory.adjust", "work_order.read", "work_order.write", "sale.read", "sale.create", "payment.manage", "accounting.read", "report.read", "audit.read"},
-		"cashier":  {"dashboard.read", "customer.read", "customer.write", "vehicle.read", "vehicle.write", "product.read", "inventory.read", "work_order.read", "work_order.write", "sale.read", "sale.create", "payment.manage"},
+		"manager":  {"dashboard.read", "customer.read", "customer.write", "vehicle.read", "vehicle.write", "product.read", "product.write", "inventory.read", "inventory.adjust", "work_order.read", "work_order.write", "sale.read", "sale.create", "payment.read", "payment.manage", "accounting.read", "accounting.write", "report.read", "audit.read"},
+		"cashier":  {"dashboard.read", "customer.read", "customer.write", "vehicle.read", "vehicle.write", "product.read", "inventory.read", "work_order.read", "work_order.write", "sale.read", "sale.create", "payment.read", "payment.manage"},
 		"mechanic": {"dashboard.read", "customer.read", "vehicle.read", "product.read", "inventory.read", "work_order.read", "work_order.write"},
 	}
 	for roleCode, grants := range roles {
@@ -150,6 +153,44 @@ func inventorySeeder(tx *gorm.DB, branch model.Branch, user model.User, products
 		}
 	}
 	return nil
+}
+
+func openingJournalSeeder(tx *gorm.DB, branch model.Branch, user model.User, products []model.Product) error {
+	var inventoryValue int64
+	for _, product := range products {
+		if product.Type == "part" {
+			inventoryValue += product.CostPrice * 25
+		}
+	}
+	const openingCash int64 = 25_000_000
+	var cash, inventory, equity model.Account
+	if err := tx.Where("branch_id=? AND code='1101'", branch.ID).First(&cash).Error; err != nil {
+		return err
+	}
+	if err := tx.Where("branch_id=? AND code='1201'", branch.ID).First(&inventory).Error; err != nil {
+		return err
+	}
+	if err := tx.Where("branch_id=? AND code='3101'", branch.ID).First(&equity).Error; err != nil {
+		return err
+	}
+	entry := model.JournalEntry{
+		Base: model.Base{ID: stable("journal-opening-" + branch.Code)}, BranchID: branch.ID,
+		Number: "OPENING-001", EntryDate: time.Date(time.Now().Year(), 1, 1, 0, 0, 0, 0, time.UTC),
+		Description: "Saldo awal bengkel", ReferenceType: "opening_balance", Status: "draft", CreatedBy: user.ID,
+	}
+	result := tx.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoNothing: true}).Create(&entry)
+	if result.Error != nil || result.RowsAffected == 0 {
+		return result.Error
+	}
+	lines := []model.JournalLine{
+		{Base: model.Base{ID: stable("journal-opening-cash-" + branch.Code)}, JournalEntryID: entry.ID, AccountID: cash.ID, Description: "Saldo awal kas", Debit: openingCash},
+		{Base: model.Base{ID: stable("journal-opening-inventory-" + branch.Code)}, JournalEntryID: entry.ID, AccountID: inventory.ID, Description: "Saldo awal persediaan", Debit: inventoryValue},
+		{Base: model.Base{ID: stable("journal-opening-equity-" + branch.Code)}, JournalEntryID: entry.ID, AccountID: equity.ID, Description: "Modal awal pemilik", Credit: openingCash + inventoryValue},
+	}
+	if err := tx.Create(&lines).Error; err != nil {
+		return err
+	}
+	return tx.Model(&entry).Update("status", "posted").Error
 }
 
 func customerVehicleSeeder(tx *gorm.DB, branch model.Branch) error {

@@ -138,15 +138,16 @@ type WorkOrder struct {
 }
 type WorkOrderItem struct {
 	Base
-	WorkOrderID uuid.UUID `json:"work_order_id"`
-	ProductID   uuid.UUID `json:"product_id"`
-	Description string    `json:"description"`
-	Type        string    `json:"type"`
-	Quantity    float64   `json:"quantity"`
-	UnitPrice   int64     `json:"unit_price"`
-	UnitCost    int64     `json:"unit_cost"`
-	Discount    int64     `json:"discount"`
-	Subtotal    int64     `json:"subtotal"`
+	WorkOrderID   uuid.UUID `json:"work_order_id"`
+	ProductID     uuid.UUID `json:"product_id"`
+	Description   string    `json:"description"`
+	Type          string    `json:"type"`
+	Quantity      float64   `json:"quantity"`
+	UnitPrice     int64     `json:"unit_price"`
+	UnitCost      int64     `json:"unit_cost"`
+	Discount      int64     `json:"discount"`
+	Subtotal      int64     `json:"subtotal"`
+	StockDeducted bool      `json:"stock_deducted"`
 }
 type Sale struct {
 	Base

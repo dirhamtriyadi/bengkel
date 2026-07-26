@@ -73,6 +73,7 @@ func Authenticate(tokens *auth.Manager) gin.HandlerFunc {
 		c.Set("user_id", claims.UserID)
 		c.Set("branch_id", claims.BranchID)
 		c.Set("roles", claims.Roles)
+		c.Set("permissions", claims.Permissions)
 		c.Next()
 	}
 }
@@ -90,6 +91,29 @@ func Authorize(allowedRoles ...string) gin.HandlerFunc {
 			}
 		}
 		response.Error(c, http.StatusForbidden, "FORBIDDEN", "Anda tidak memiliki akses ke aksi ini")
+	}
+}
+func RequirePermission(required string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		roles, _ := c.Get("roles")
+		if values, ok := roles.([]string); ok {
+			for _, role := range values {
+				if role == "owner" {
+					c.Next()
+					return
+				}
+			}
+		}
+		permissions, _ := c.Get("permissions")
+		if values, ok := permissions.([]string); ok {
+			for _, permission := range values {
+				if permission == required {
+					c.Next()
+					return
+				}
+			}
+		}
+		response.Error(c, http.StatusForbidden, "PERMISSION_DENIED", "Permission "+required+" diperlukan")
 	}
 }
 func ScopeBranch() gin.HandlerFunc {

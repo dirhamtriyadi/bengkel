@@ -1,0 +1,31 @@
+"use client";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation,useQuery,useQueryClient } from "@tanstack/react-query";
+import { Pencil,Plus,Trash2 } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { DataTable,type TableRow } from "@/components/data-table";
+import { Button } from "@/components/ui/button";
+import { Dialog,DialogContent,DialogDescription,DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { apiClient } from "@/lib/api";
+import { dateTime } from "@/lib/utils";
+
+const schema=z.object({branch_id:z.string().uuid(),name:z.string().min(1).max(150),email:z.string().email(),phone:z.string().max(30),password:z.string().refine(value=>value===""||value.length>=8,"Minimal 8 karakter"),is_active:z.boolean(),role_ids:z.array(z.string().uuid()).min(1,"Pilih minimal satu role")});
+type Form=z.infer<typeof schema>;type Role={id:string;code:string;name:string};type Branch={id:string;code:string;name:string};
+
+export default function UsersPage(){
+ const client=useQueryClient();const [open,setOpen]=useState(false);const [editing,setEditing]=useState<TableRow|null>(null);
+ const roles=useQuery({queryKey:["roles-options"],queryFn:()=>apiClient<Role[]>("/roles")});const branches=useQuery({queryKey:["branches-options"],queryFn:()=>apiClient<Branch[]>("/branches?per_page=100&sort=code&direction=asc")});
+ const {register,handleSubmit,reset,watch,setValue,setError,formState:{errors}}=useForm<Form>({resolver:zodResolver(schema),defaultValues:{branch_id:"",name:"",email:"",phone:"",password:"",is_active:true,role_ids:[]}});
+ const selected=watch("role_ids");
+ const mutation=useMutation({mutationFn:(values:Form)=>apiClient(editing?`/users/${editing.id}`:"/users",{method:editing?"PUT":"POST",body:JSON.stringify(values)}),onSuccess:()=>{client.invalidateQueries({queryKey:["/users"]});setOpen(false)}});
+ function show(row?:TableRow){setEditing(row??null);const branch=String(row?.branch_id??branches.data?.data?.[0]?.id??"");const assigned=(row?.roles as Role[]|undefined)?.map(role=>role.id)??[];reset({branch_id:branch,name:String(row?.name??""),email:String(row?.email??""),phone:String(row?.phone??""),password:"",is_active:row?Boolean(row.is_active):true,role_ids:assigned});setOpen(true)}
+ function toggleRole(id:string){setValue("role_ids",selected.includes(id)?selected.filter(value=>value!==id):[...selected,id],{shouldValidate:true})}
+ async function remove(row:TableRow){if(!window.confirm(`Hapus pengguna ${row.name}?`))return;await apiClient(`/users/${row.id}`,{method:"DELETE"});client.invalidateQueries({queryKey:["/users"]})}
+ function submit(values:Form){if(!editing&&values.password.length<8){setError("password",{message:"Minimal 8 karakter"});return}mutation.mutate(values)}
+ return <div className="space-y-6"><div><h1 className="text-3xl font-bold tracking-tight">Pengguna</h1><p className="mt-2 text-muted-foreground">Kelola akun staf, cabang aktif, status, dan role pengguna.</p></div><DataTable endpoint="/users" columns={[{key:"name",label:"Nama"},{key:"email",label:"Email"},{key:"branch_name",label:"Cabang"},{key:"roles",label:"Role",format:value=>(value as Role[]??[]).map(role=>role.name).join(", ")},{key:"is_active",label:"Status",format:value=>value?"Aktif":"Nonaktif"},{key:"last_login_at",label:"Login terakhir",format:value=>value?dateTime.format(new Date(String(value))):"—"}]} toolbar={<Button onClick={()=>show()}><Plus className="size-4"/>Tambah pengguna</Button>} actions={row=><div className="flex gap-1"><Button variant="ghost" size="icon" onClick={()=>show(row)}><Pencil className="size-4"/></Button><Button variant="ghost" size="icon" onClick={()=>remove(row)}><Trash2 className="size-4 text-red-600"/></Button></div>}/><Dialog open={open} onOpenChange={setOpen}><DialogContent><DialogTitle>{editing?"Edit pengguna":"Tambah pengguna"}</DialogTitle><DialogDescription>Perubahan role berlaku pada token baru; pengguna perlu login ulang.</DialogDescription><form className="mt-6 grid gap-4 sm:grid-cols-2" onSubmit={handleSubmit(submit)}><Field label="Nama" error={errors.name?.message}><Input {...register("name")}/></Field><Field label="Email" error={errors.email?.message}><Input type="email" {...register("email")}/></Field><Field label="Telepon" error={errors.phone?.message}><Input {...register("phone")}/></Field><Field label={editing?"Kata sandi baru (opsional)":"Kata sandi"} error={errors.password?.message}><Input type="password" {...register("password")}/></Field><Field label="Cabang" error={errors.branch_id?.message}><select className="h-10 w-full rounded-xl border bg-white px-3 text-sm" {...register("branch_id")}><option value="">Pilih cabang</option>{branches.data?.data?.map(branch=><option key={branch.id} value={branch.id}>{branch.code} — {branch.name}</option>)}</select></Field><label className="flex items-end gap-2 pb-2 text-sm"><input type="checkbox" {...register("is_active")}/>Pengguna aktif</label><fieldset className="space-y-2 rounded-xl border p-4 sm:col-span-2"><legend className="px-2 text-sm font-semibold">Role</legend><div className="grid gap-2 sm:grid-cols-2">{roles.data?.data?.map(role=><label key={role.id} className="flex items-center gap-2 rounded-lg p-2 text-sm hover:bg-muted"><input type="checkbox" checked={selected.includes(role.id)} onChange={()=>toggleRole(role.id)}/><span><b>{role.name}</b><small className="ml-2 text-muted-foreground">{role.code}</small></span></label>)}</div>{errors.role_ids&&<p className="text-xs text-red-600">{errors.role_ids.message}</p>}</fieldset>{mutation.error&&<p className="rounded-xl bg-red-50 p-3 text-sm text-red-700 sm:col-span-2">{mutation.error.message}</p>}<div className="flex justify-end gap-2 sm:col-span-2"><Button type="button" variant="outline" onClick={()=>setOpen(false)}>Batal</Button><Button disabled={mutation.isPending}>Simpan</Button></div></form></DialogContent></Dialog></div>
+}
+function Field({label,error,children}:{label:string;error?:string;children:React.ReactNode}){return <label className="text-sm font-medium">{label}<div className="mt-2">{children}</div>{error&&<span className="text-xs text-red-600">{error}</span>}</label>}

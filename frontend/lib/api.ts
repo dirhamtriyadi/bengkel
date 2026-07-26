@@ -5,7 +5,8 @@ export type ApiEnvelope<T> = { data?: T; meta?: ApiMeta; error?: ApiError };
 
 export class ApiException extends Error {
   constructor(public status: number, public apiError: ApiError, public requestId?: string) {
-    super(apiError.message);
+    const details = apiError.details?.map((detail) => `${detail.field}: ${detail.message}`).join(", ");
+    super(details ? `${apiError.message} (${details})` : apiError.message);
   }
 }
 

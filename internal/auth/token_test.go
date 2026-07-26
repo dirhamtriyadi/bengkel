@@ -10,7 +10,7 @@ import (
 func TestIssueAndParseAccess(t *testing.T) {
 	manager := NewManager("access-secret-that-is-longer-than-32-chars", "refresh-secret-that-is-longer-than-32", time.Minute, time.Hour)
 	userID, branchID := uuid.New(), uuid.New()
-	access, refresh, _, err := manager.Issue(userID, &branchID, []string{"owner"})
+	access, refresh, _, err := manager.Issue(userID, &branchID, []string{"owner"}, []string{"dashboard.read"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -20,6 +20,9 @@ func TestIssueAndParseAccess(t *testing.T) {
 	}
 	if claims.UserID != userID || claims.BranchID == nil || *claims.BranchID != branchID {
 		t.Fatalf("unexpected claims: %#v", claims)
+	}
+	if len(claims.Permissions) != 1 || claims.Permissions[0] != "dashboard.read" {
+		t.Fatalf("unexpected permissions: %#v", claims.Permissions)
 	}
 	if _, err := manager.ParseAccess(refresh); err == nil {
 		t.Fatal("refresh token must not be accepted as access token")

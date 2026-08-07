@@ -17,7 +17,6 @@ import { Input } from "@/components/ui/input";
 type Product={id:string;sku:string;name:string;type:string;selling_price:number};
 type Customer={id:string;code:string;name:string;phone:string};
 type WorkOrderDetail={work_order:{id:string;number:string;status:string};customer:{id:string;name:string};vehicle:{identifier:string;brand:string;model:string};items:Array<{id:string;product_id:string;description:string;type:string;quantity:number;unit_price:number;discount:number;subtotal:number}>;subtotal:number};
-declare global { interface Window { snap?: { pay:(token:string,callbacks:{onSuccess:()=>void;onPending:()=>void;onError:()=>void;onClose:()=>void})=>void } } }
 const schema=z.object({work_order_id:z.string().optional(),customer_id:z.string().optional(),payment_method:z.enum(["cash","midtrans"]),amount_paid:z.coerce.number().min(0),discount:z.coerce.number().min(0),items:z.array(z.object({product_id:z.string().uuid(),quantity:z.coerce.number().positive(),discount:z.coerce.number().min(0)}))}).superRefine((value,ctx)=>{if(!value.work_order_id&&value.items.length===0)ctx.addIssue({code:"custom",path:["items"],message:"Pilih minimal satu item"})});
 type Form=z.infer<typeof schema>;
 

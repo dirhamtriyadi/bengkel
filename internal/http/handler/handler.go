@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
@@ -914,8 +915,19 @@ func (h *Handler) postSaleJournal(tx *gorm.DB, sale model.Sale, cogs int64, paym
 // @Success 200 {object} response.Envelope
 // @Router /sales [get]
 func (h *Handler) ListSales(c *gin.Context) {
-	var rows []model.Sale
-	list(c, h.DB.Model(&model.Sale{}).Where("branch_id=?", branchID(c)), &rows, []string{"number", "status", "notes"})
+	type row struct {
+		model.Sale
+		CustomerName  string `json:"customer_name"`
+		CustomerPhone string `json:"customer_phone"`
+		PaymentMethod string `json:"payment_method"`
+	}
+	var rows []row
+	query := h.DB.Model(&model.Sale{}).Select(`sales.*,
+		COALESCE((SELECT c.name FROM customers c WHERE c.id=sales.customer_id AND c.deleted_at IS NULL), '') customer_name,
+		COALESCE((SELECT c.phone FROM customers c WHERE c.id=sales.customer_id AND c.deleted_at IS NULL), '') customer_phone,
+		COALESCE((SELECT p.method FROM payments p WHERE p.sale_id=sales.id AND p.deleted_at IS NULL ORDER BY p.created_at DESC LIMIT 1), '') payment_method`).
+		Where("sales.branch_id=?", branchID(c))
+	list(c, query, &rows, []string{"number", "status", "notes"})
 }
 
 // SaleDetail godoc
@@ -962,11 +974,6 @@ func (h *Handler) CreateMidtransSnap(c *gin.Context) {
 		response.Error(c, http.StatusUnprocessableEntity, "PAYMENT_NOT_PAYABLE", "Pembayaran ini tidak dapat diproses dengan Midtrans")
 		return
 	}
-	if token, ok := payment.Metadata["snap_token"].(string); ok && token != "" {
-		response.OK(c, gin.H{"token": token, "redirect_url": payment.Metadata["redirect_url"]})
-		return
-	}
-
 	var sale model.Sale
 	if err := h.DB.Where("id=? AND branch_id=?", payment.SaleID, branchID(c)).First(&sale).Error; err != nil {
 		serverError(c)
@@ -976,71 +983,38 @@ func (h *Handler) CreateMidtransSnap(c *gin.Context) {
 	if sale.CustomerID != nil {
 		_ = h.DB.Where("id=? AND branch_id=?", *sale.CustomerID, branchID(c)).First(&customer).Error
 	}
-	feeSettings, err := h.midtransFeeSettings(branchID(c))
-	if snapshot, ok := payment.Metadata["fee_config_snapshot"]; ok {
-		if saved, snapshotErr := decodeMidtransFeeSnapshot(snapshot); snapshotErr == nil {
-			feeSettings = saved
-			err = nil
+	hasSnapToken := false
+	if token, ok := payment.Metadata["snap_token"].(string); ok && token != "" {
+		hasSnapToken = true
+	}
+	finishURL := strings.TrimRight(h.Config.FrontendURL, "/") + "/print/receipt/" + sale.ID.String()
+	publicURL := ""
+	var issuedLink *model.PublicInvoiceLink
+	if !hasSnapToken {
+		creator := userID(c)
+		link, _, issuedURL, err := h.issuePublicInvoiceLink(sale.BranchID, sale.ID, &creator, "midtrans_snap")
+		if err != nil {
+			serverError(c)
+			return
 		}
+		issuedLink = &link
+		finishURL = issuedURL
+		publicURL = issuedURL
 	}
-	if err != nil {
-		response.Error(c, http.StatusUnprocessableEntity, "MIDTRANS_FEE_CONFIG_INVALID", err.Error())
+	result, operationError := h.getOrCreateMidtransSnap(c.Request.Context(), &payment, sale, customer, finishURL)
+	if operationError != nil {
+		// A provider rejection means the newly issued bearer link was never used
+		// as a valid Midtrans finish URL. Keep it only for an internal persistence
+		// failure, because Midtrans may already have created the transaction.
+		if issuedLink != nil && operationError.Code != "INTERNAL_ERROR" {
+			h.revokeFailedInvoiceLink(*issuedLink, errors.New(operationError.Code))
+		}
+		operationError.respond(c)
 		return
 	}
-	channels := feeSettings.enabledChannels()
-	enabledPayments := make([]string, 0, len(channels))
-	feeConfigs := make([]paymentgateway.PaymentFeeConfig, 0, len(channels))
-	for _, channel := range channels {
-		enabledPayments = append(enabledPayments, channel.PaymentType)
-		feeConfigs = append(feeConfigs, paymentgateway.PaymentFeeConfig{
-			PaymentType:        channel.PaymentType,
-			Acquirer:           channel.Acquirer,
-			CustomerPercentage: channel.CustomerPercentage,
-		})
-	}
-
-	gateway := paymentgateway.NewMidtrans(h.Config.MidtransServerKey, h.Config.MidtransIsProduction)
-	snapAmount := payment.BaseAmount
-	if snapAmount == 0 {
-		snapAmount = payment.Amount
-	}
-	result, err := gateway.CreateSnap(c.Request.Context(), paymentgateway.SnapInput{
-		IdempotencyKey:   payment.ID.String(),
-		OrderID:          payment.ProviderReference,
-		Amount:           snapAmount,
-		ItemID:           payment.SaleID.String(),
-		ItemName:         "Pembayaran " + payment.ProviderReference,
-		CustomerName:     customer.Name,
-		CustomerEmail:    customer.Email,
-		CustomerPhone:    customer.Phone,
-		FinishURL:        strings.TrimRight(h.Config.FrontendURL, "/") + "/print/receipt/" + sale.ID.String(),
-		EnabledPayments:  enabledPayments,
-		AutomaticFee:     feeSettings.AutomaticFee,
-		PaymentFeeConfig: feeConfigs,
-	})
-	if err != nil {
-		response.Error(c, http.StatusBadGateway, "MIDTRANS_REJECTED", "Midtrans menolak pembuatan transaksi: "+err.Error())
-		return
-	}
-	environment := "sandbox"
-	if h.Config.MidtransIsProduction {
-		environment = "production"
-	}
-	if payment.Metadata == nil {
-		payment.Metadata = map[string]any{}
-	}
-	payment.Metadata["snap_token"] = result.Token
-	payment.Metadata["redirect_url"] = result.RedirectURL
-	payment.Metadata["environment"] = environment
-	payment.Metadata["sdk"] = "midtrans-go"
-	payment.Metadata["automatic_fee"] = feeSettings.AutomaticFee
-	payment.Metadata["fee_config_snapshot"] = feeSettings
-	if err := h.DB.Model(&payment).Update("metadata", payment.Metadata).Error; err != nil {
-		serverError(c)
-		return
-	}
+	result.PublicURL = publicURL
 	h.audit(c, "create_snap", "payment", &payment.ID, nil, map[string]any{"order_id": payment.ProviderReference})
-	response.OK(c, gin.H{"token": result.Token, "redirect_url": result.RedirectURL, "environment": environment})
+	response.OK(c, result)
 }
 
 // Dashboard godoc
@@ -1169,6 +1143,9 @@ func (h *Handler) PublicSettings(c *gin.Context) {
 func (h *Handler) Settings(c *gin.Context) {
 	var rows []model.Setting
 	h.DB.Where("branch_id=?", branchID(c)).Order("key").Find(&rows)
+	for index := range rows {
+		h.redactWhatsAppSetting(&rows[index])
+	}
 	response.OK(c, rows)
 }
 func (h *Handler) UpsertSetting(c *gin.Context) {
@@ -1180,6 +1157,10 @@ func (h *Handler) UpsertSetting(c *gin.Context) {
 		return
 	}
 	key := c.Param("key")
+	if key == whatsAppSettingKey {
+		response.Error(c, http.StatusConflict, "SETTING_REQUIRES_DEDICATED_ENDPOINT", "Gunakan endpoint integrasi WhatsApp agar token API disimpan terenkripsi")
+		return
+	}
 	if key == midtransChannelsSettingKey {
 		settings, err := parseMidtransFeeSettings(in.Value)
 		if err != nil {
@@ -1300,7 +1281,7 @@ func (h *Handler) SyncMidtransPayment(c *gin.Context) {
 		return
 	}
 
-	transaction, err := h.checkMidtransTransaction(c, payment)
+	transaction, err := h.checkMidtransTransaction(c.Request.Context(), payment)
 	if err != nil {
 		if errors.Is(err, errMidtransNotStarted) {
 			response.OK(c, gin.H{"status": "pending", "already_processed": true, "not_started": true})
@@ -1309,7 +1290,7 @@ func (h *Handler) SyncMidtransPayment(c *gin.Context) {
 		h.respondMidtransStatusError(c, err)
 		return
 	}
-	status, alreadyProcessed, err := h.applyMidtransTransaction(c, payment, transaction)
+	status, alreadyProcessed, err := h.applyMidtransTransaction(payment, transaction)
 	if err != nil {
 		serverError(c)
 		return
@@ -1333,12 +1314,12 @@ func (h *Handler) MidtransNotification(c *gin.Context) {
 		return
 	}
 
-	transaction, err := h.checkMidtransTransaction(c, payment)
+	transaction, err := h.checkMidtransTransaction(c.Request.Context(), payment)
 	if err != nil {
 		h.respondMidtransStatusError(c, err)
 		return
 	}
-	status, alreadyProcessed, err := h.applyMidtransTransaction(c, payment, transaction)
+	status, alreadyProcessed, err := h.applyMidtransTransaction(payment, transaction)
 	if err != nil {
 		serverError(c)
 		return
@@ -1346,9 +1327,9 @@ func (h *Handler) MidtransNotification(c *gin.Context) {
 	response.OK(c, gin.H{"message": "Notification processed", "status": status, "already_processed": alreadyProcessed})
 }
 
-func (h *Handler) checkMidtransTransaction(c *gin.Context, payment model.Payment) (*paymentgateway.TransactionStatus, error) {
+func (h *Handler) checkMidtransTransaction(ctx context.Context, payment model.Payment) (*paymentgateway.TransactionStatus, error) {
 	gateway := paymentgateway.NewMidtrans(h.Config.MidtransServerKey, h.Config.MidtransIsProduction)
-	transaction, err := gateway.CheckTransaction(c.Request.Context(), payment.ProviderReference)
+	transaction, err := gateway.CheckTransaction(ctx, payment.ProviderReference)
 	if err != nil {
 		var providerError *paymentgateway.Error
 		if errors.As(err, &providerError) && providerError.StatusCode == http.StatusNotFound {
@@ -1405,7 +1386,7 @@ func (h *Handler) respondMidtransStatusError(c *gin.Context, err error) {
 	response.Error(c, http.StatusBadGateway, "MIDTRANS_STATUS_UNAVAILABLE", "Status transaksi Midtrans tidak dapat diverifikasi: "+err.Error())
 }
 
-func (h *Handler) applyMidtransTransaction(c *gin.Context, payment model.Payment, transaction *paymentgateway.TransactionStatus) (string, bool, error) {
+func (h *Handler) applyMidtransTransaction(payment model.Payment, transaction *paymentgateway.TransactionStatus) (string, bool, error) {
 	status := "pending"
 	if (transaction.TransactionStatus == "capture" && transaction.FraudStatus == "accept") || transaction.TransactionStatus == "settlement" {
 		status = "paid"
@@ -1451,7 +1432,19 @@ func (h *Handler) applyMidtransTransaction(c *gin.Context, payment model.Payment
 	} else if channel.CustomerPercentage > 0 {
 		feeBearer = "split"
 	}
+	alreadyProcessed := false
 	err = h.DB.Transaction(func(tx *gorm.DB) error {
+		// Webhook, staff sync, and public-page sync can arrive at the same time.
+		// Serialize them on the payment row so a sale journal is posted once.
+		var lockedPayment model.Payment
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&lockedPayment, "id=?", payment.ID).Error; err != nil {
+			return err
+		}
+		if lockedPayment.Status == status && status != "pending" {
+			alreadyProcessed = true
+			return nil
+		}
+		payment = lockedPayment
 		now := time.Now()
 		metadata := payment.Metadata
 		if metadata == nil {
@@ -1488,10 +1481,11 @@ func (h *Handler) applyMidtransTransaction(c *gin.Context, payment model.Payment
 		}
 		if status == "paid" {
 			var sale model.Sale
-			if err := tx.First(&sale, "id=?", payment.SaleID).Error; err != nil {
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&sale, "id=?", payment.SaleID).Error; err != nil {
 				return err
 			}
 			if sale.Status == "paid" {
+				alreadyProcessed = true
 				return nil
 			}
 			sale.Status = "paid"
@@ -1533,7 +1527,7 @@ func (h *Handler) applyMidtransTransaction(c *gin.Context, payment model.Payment
 		}
 		return nil
 	})
-	return status, false, err
+	return status, alreadyProcessed, err
 }
 
 func midtransChannelKey(transaction *paymentgateway.TransactionStatus) string {

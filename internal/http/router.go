@@ -49,6 +49,9 @@ func NewRouter(cfg config.Config, db *gorm.DB, log *zap.Logger) *gin.Engine {
 		public := v1.Group("/public")
 		public.GET("/pages/:slug", h.PublicPage)
 		public.GET("/settings", h.PublicSettings)
+		public.GET("/invoices/:token", h.PublicInvoice)
+		public.POST("/invoices/:token/midtrans/snap", h.PublicInvoiceMidtransSnap)
+		public.POST("/invoices/:token/midtrans/sync", h.PublicInvoiceMidtransSync)
 		v1.POST("/payments/midtrans/notification", h.MidtransNotification)
 
 		secured := v1.Group("")
@@ -94,6 +97,7 @@ func NewRouter(cfg config.Config, db *gorm.DB, log *zap.Logger) *gin.Engine {
 		secured.GET("/sales", middleware.RequirePermission("sale.read"), h.ListSales)
 		secured.GET("/sales/:id", middleware.RequirePermission("sale.read"), h.SaleDetail)
 		secured.POST("/sales/checkout", middleware.RequirePermission("sale.create"), h.Checkout)
+		secured.POST("/sales/:id/public-invoice/whatsapp", middleware.RequirePermission("payment.manage"), h.SendPublicInvoiceWhatsApp)
 
 		secured.GET("/payments", middleware.RequirePermission("payment.read"), h.ListPayments)
 		secured.GET("/payments/:id", middleware.RequirePermission("payment.read"), h.PaymentDetail)
@@ -122,6 +126,11 @@ func NewRouter(cfg config.Config, db *gorm.DB, log *zap.Logger) *gin.Engine {
 		secured.GET("/audit-logs", middleware.RequirePermission("audit.read"), h.AuditLogs)
 		secured.GET("/settings", middleware.RequirePermission("settings.manage"), h.Settings)
 		secured.PUT("/settings/:key", middleware.RequirePermission("settings.manage"), h.UpsertSetting)
+		secured.GET("/integrations/whatsapp", middleware.RequirePermission("settings.manage"), h.WhatsAppIntegration)
+		secured.PUT("/integrations/whatsapp", middleware.RequirePermission("settings.manage"), h.UpdateWhatsAppIntegration)
+		secured.POST("/integrations/whatsapp/session/start", middleware.RequirePermission("settings.manage"), h.StartWhatsAppSession)
+		secured.GET("/integrations/whatsapp/session/status", middleware.RequirePermission("settings.manage"), h.WhatsAppSessionStatus)
+		secured.GET("/integrations/whatsapp/session/qr", middleware.RequirePermission("settings.manage"), h.WhatsAppSessionQR)
 		secured.GET("/cms/pages", middleware.RequirePermission("cms.manage"), h.CMSPages)
 		secured.PUT("/cms/pages/:slug", middleware.RequirePermission("cms.manage"), h.UpsertCMSPage)
 	}

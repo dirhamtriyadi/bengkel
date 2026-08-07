@@ -9,6 +9,7 @@ Monorepo operasional bengkel multi-cabang (single tenant) dengan backend Go di r
 - Frontend: Next.js App Router, TypeScript, Tailwind CSS, komponen bergaya shadcn/ui
 - Form/data: Zod, React Hook Form, TanStack Query, TanStack Table
 - Infrastructure: Docker Compose, Makefile, Jenkins declarative pipeline
+- WhatsApp invoice: integrasi ke deployment wwebjs-api terpisah, public bearer link, dan Midtrans Snap tanpa login
 
 ## Menjalankan dengan Docker
 
@@ -217,6 +218,26 @@ POST https://api.example.com/api/v1/payments/midtrans/notification
 ```
 
 Webhook memverifikasi SHA-512 signature dan mengecek ulang status serta nominal transaksi ke API Midtrans. Prosesnya idempotent terhadap status yang sama, lalu mem-posting sale dan jurnal hanya setelah `settlement` atau `capture` yang diterima.
+
+## Invoice publik melalui WhatsApp
+
+Invoice Midtrans yang masih pending dapat dikirim dari **Transaksi → Kirim invoice** jika transaksi memiliki customer dan nomor WhatsApp. Pesan berisi URL publik `/invoice/{token}`; customer dapat melihat rincian dan membayar melalui Midtrans tanpa login. Token dibuat dari 32 byte acak, hanya hash SHA-256 yang disimpan di database, otomatis kedaluwarsa, tidak dimasukkan ke audit log, dan tidak mengungkap ID sale/payment internal.
+
+`wwebjs-api` sengaja **tidak digabung** ke Docker Compose atau repository BengkelOS. Deploy service tersebut secara terpisah mengikuti [repository upstream](https://github.com/avoylenko/wwebjs-api) dan [API docs upstream](https://wwebjs.ljn.app/api-docs/), beri API key, dan pertahankan volume session pada deployment itu sendiri. Dari BengkelOS buka **Pengaturan → WhatsApp invoice**, lalu:
+
+1. Isi URL deployment wwebjs-api yang dapat dijangkau container API BengkelOS.
+2. Isi API token wwebjs-api. Token dienkripsi AES-GCM di tabel `settings`; frontend dan endpoint daftar settings hanya menerima status `api_token_configured`, tidak pernah plaintext/ciphertext.
+3. Isi session ID dengan nomor WhatsApp pengirim, misalnya `6281234567890`. Nomor `08...` otomatis dinormalisasi ke format `62...`.
+4. Simpan dan aktifkan integrasi, pilih **Mulai session**, tampilkan QR, lalu pindai melalui **WhatsApp → Perangkat tertaut** pada nomor pengirim.
+5. Pastikan status menjadi `CONNECTED`. Kasir kemudian dapat memakai **Transaksi → Kirim invoice**.
+
+BengkelOS mengirim API token ke deployment terpisah melalui header `x-api-key` pada setiap request status, QR, verifikasi nomor (`isRegisteredUser`), dan pengiriman pesan (`sendMessage`). Konfigurasi ini branch-scoped dan hanya dapat dikelola oleh permission `settings.manage`. Mengganti `JWT_REFRESH_SECRET` membuat token terenkripsi lama tidak dapat dibaca; setelah rotasi secret, masukkan ulang token API melalui Pengaturan.
+
+URL service, ciphertext token API, dan session ID disimpan pada baris `integration.whatsapp.wwebjs` di tabel `settings`; tidak ada variabel `WWEBJS_*` yang perlu ditambahkan ke `.env` BengkelOS.
+
+`FRONTEND_URL` tetap wajib berupa URL HTTPS yang dapat diakses customer; jangan memakai `localhost` di production. `PUBLIC_INVOICE_TTL` hanya mengatur masa berlaku bearer link dan tidak berisi kredensial wwebjs-api.
+
+`wwebjs-api` menggunakan WhatsApp Web dan bukan API resmi WhatsApp. Repository upstream menyatakan akun tetap berisiko diblokir karena WhatsApp tidak mengizinkan bot/client tidak resmi. Untuk penggunaan bisnis dengan kebutuhan kepatuhan/SLA lebih tinggi, pertimbangkan WhatsApp Business Platform resmi.
 
 Biaya pelanggan memakai fitur **Automatic Fee Imposition** Midtrans, sehingga backend mengirim tagihan asli dan Midtrans menghitung gross-up berdasarkan channel yang benar-benar dipilih. Nilai aktual `original_amount`, `gross_amount`, dan `customer_imposed_payment_fee` direkonsiliasi saat callback/sync. Konfigurasi cabang berada di `payment.midtrans.channels` dan dapat mengatur:
 

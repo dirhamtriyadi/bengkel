@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ type Config struct {
 	CORSOrigins, TrustedProxies                                              []string
 	FrontendURL, MidtransServerKey, MidtransClientKey                        string
 	MidtransIsProduction                                                     bool
+	PublicInvoiceTTL                                                         time.Duration
 }
 
 func Load() (Config, error) {
@@ -27,6 +29,10 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("JWT_REFRESH_TTL: %w", err)
 	}
+	publicInvoiceTTL, err := time.ParseDuration(get("PUBLIC_INVOICE_TTL", "168h"))
+	if err != nil {
+		return Config{}, fmt.Errorf("PUBLIC_INVOICE_TTL: %w", err)
+	}
 	cfg := Config{
 		AppName: get("APP_NAME", "BengkelOS"), Environment: get("APP_ENV", "development"),
 		HTTPPort: get("HTTP_PORT", "8080"), DatabaseURL: os.Getenv("DATABASE_URL"),
@@ -35,12 +41,20 @@ func Load() (Config, error) {
 		TrustedProxies: split(os.Getenv("TRUSTED_PROXIES")), FrontendURL: get("FRONTEND_URL", "http://localhost:3000"),
 		MidtransServerKey: os.Getenv("MIDTRANS_SERVER_KEY"), MidtransClientKey: os.Getenv("MIDTRANS_CLIENT_KEY"),
 		MidtransIsProduction: get("MIDTRANS_IS_PRODUCTION", "false") == "true",
+		PublicInvoiceTTL:     publicInvoiceTTL,
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("DATABASE_URL is required")
 	}
 	if len(cfg.AccessSecret) < 32 || len(cfg.RefreshSecret) < 32 {
 		return Config{}, fmt.Errorf("JWT secrets must contain at least 32 characters")
+	}
+	frontend, parseErr := url.Parse(cfg.FrontendURL)
+	if parseErr != nil || (frontend.Scheme != "http" && frontend.Scheme != "https") || frontend.Host == "" {
+		return Config{}, fmt.Errorf("FRONTEND_URL must be an absolute http(s) URL")
+	}
+	if cfg.PublicInvoiceTTL < 5*time.Minute || cfg.PublicInvoiceTTL > 30*24*time.Hour {
+		return Config{}, fmt.Errorf("PUBLIC_INVOICE_TTL must be between 5m and 720h")
 	}
 	return cfg, nil
 }

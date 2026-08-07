@@ -424,6 +424,22 @@ definitions:
     required:
     - identifier
     type: object
+  internal_http_handler.whatsAppSettingsInput:
+    properties:
+      api_token:
+        maxLength: 2048
+        type: string
+      base_url:
+        maxLength: 500
+        type: string
+      clear_api_token:
+        type: boolean
+      enabled:
+        type: boolean
+      session_id:
+        maxLength: 30
+        type: string
+    type: object
   internal_http_handler.workItemInput:
     properties:
       discount:
@@ -850,6 +866,94 @@ paths:
       summary: Statistik dashboard cabang
       tags:
       - Dashboard
+  /integrations/whatsapp:
+    get:
+      description: Token API tidak pernah dikembalikan; response hanya menunjukkan
+        apakah token sudah tersimpan.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Konfigurasi wwebjs-api cabang
+      tags:
+      - WhatsApp
+    put:
+      consumes:
+      - application/json
+      description: URL API, token API terenkripsi, dan session ID berupa nomor WhatsApp
+        disimpan di database.
+      parameters:
+      - description: Konfigurasi WhatsApp
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.whatsAppSettingsInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Simpan konfigurasi wwebjs-api cabang
+      tags:
+      - WhatsApp
+  /integrations/whatsapp/session/qr:
+    get:
+      description: Mengambil PNG QR dari service wwebjs-api terpisah dan meneruskannya
+        sebagai data URL.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: QR pairing session wwebjs-api
+      tags:
+      - WhatsApp
+  /integrations/whatsapp/session/start:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Mulai session wwebjs-api
+      tags:
+      - WhatsApp
+  /integrations/whatsapp/session/status:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Status koneksi session wwebjs-api
+      tags:
+      - WhatsApp
   /inventory:
     get:
       produces:
@@ -1224,6 +1328,80 @@ paths:
       summary: Ubah barang atau jasa
       tags:
       - Products
+  /public/invoices/{token}:
+    get:
+      description: Menampilkan invoice tanpa login. Token acak pada URL menjadi kredensial
+        akses dan memiliki masa berlaku.
+      parameters:
+      - description: Public invoice token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      summary: Invoice publik berdasarkan bearer token
+      tags:
+      - Public Invoices
+  /public/invoices/{token}/midtrans/snap:
+    post:
+      description: Membuat atau mengambil ulang token Midtrans Snap tanpa mewajibkan
+        customer login.
+      parameters:
+      - description: Public invoice token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      summary: Mulai atau lanjutkan pembayaran invoice publik
+      tags:
+      - Public Invoices
+  /public/invoices/{token}/midtrans/sync:
+    post:
+      parameters:
+      - description: Public invoice token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      summary: Sinkronkan status pembayaran invoice publik
+      tags:
+      - Public Invoices
   /public/pages/{slug}:
     get:
       parameters:
@@ -1489,6 +1667,36 @@ paths:
       security:
       - BearerAuth: []
       summary: Detail sale untuk invoice/receipt
+      tags:
+      - Sales
+  /sales/{id}/public-invoice/whatsapp:
+    post:
+      description: Nomor selalu diambil dari customer sale, diverifikasi melalui wwebjs-api,
+        lalu dikirimi bearer link yang kedaluwarsa.
+      parameters:
+      - description: Sale ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Kirim invoice publik ke WhatsApp pelanggan
       tags:
       - Sales
   /sales/checkout:

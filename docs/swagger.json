@@ -618,6 +618,147 @@
                 }
             }
         },
+        "/integrations/whatsapp": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Token API tidak pernah dikembalikan; response hanya menunjukkan apakah token sudah tersimpan.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "WhatsApp"
+                ],
+                "summary": "Konfigurasi wwebjs-api cabang",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "URL API, token API terenkripsi, dan session ID berupa nomor WhatsApp disimpan di database.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "WhatsApp"
+                ],
+                "summary": "Simpan konfigurasi wwebjs-api cabang",
+                "parameters": [
+                    {
+                        "description": "Konfigurasi WhatsApp",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handler.whatsAppSettingsInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/integrations/whatsapp/session/qr": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mengambil PNG QR dari service wwebjs-api terpisah dan meneruskannya sebagai data URL.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "WhatsApp"
+                ],
+                "summary": "QR pairing session wwebjs-api",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/integrations/whatsapp/session/start": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "WhatsApp"
+                ],
+                "summary": "Mulai session wwebjs-api",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/integrations/whatsapp/session/status": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "WhatsApp"
+                ],
+                "summary": "Status koneksi session wwebjs-api",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
         "/inventory": {
             "get": {
                 "security": [
@@ -1233,6 +1374,116 @@
                 }
             }
         },
+        "/public/invoices/{token}": {
+            "get": {
+                "description": "Menampilkan invoice tanpa login. Token acak pada URL menjadi kredensial akses dan memiliki masa berlaku.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public Invoices"
+                ],
+                "summary": "Invoice publik berdasarkan bearer token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Public invoice token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/public/invoices/{token}/midtrans/snap": {
+            "post": {
+                "description": "Membuat atau mengambil ulang token Midtrans Snap tanpa mewajibkan customer login.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public Invoices"
+                ],
+                "summary": "Mulai atau lanjutkan pembayaran invoice publik",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Public invoice token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/public/invoices/{token}/midtrans/sync": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public Invoices"
+                ],
+                "summary": "Sinkronkan status pembayaran invoice publik",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Public invoice token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
         "/public/pages/{slug}": {
             "get": {
                 "produces": [
@@ -1719,6 +1970,52 @@
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/sales/{id}/public-invoice/whatsapp": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Nomor selalu diambil dari customer sale, diverifikasi melalui wwebjs-api, lalu dikirimi bearer link yang kedaluwarsa.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales"
+                ],
+                "summary": "Kirim invoice publik ke WhatsApp pelanggan",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Sale ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
                         "schema": {
                             "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
                         }
@@ -2905,6 +3202,29 @@
                 "year": {
                     "type": "integer",
                     "minimum": 0
+                }
+            }
+        },
+        "internal_http_handler.whatsAppSettingsInput": {
+            "type": "object",
+            "properties": {
+                "api_token": {
+                    "type": "string",
+                    "maxLength": 2048
+                },
+                "base_url": {
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "clear_api_token": {
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "session_id": {
+                    "type": "string",
+                    "maxLength": 30
                 }
             }
         },

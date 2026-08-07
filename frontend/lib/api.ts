@@ -23,6 +23,19 @@ export async function apiClient<T>(path: string, init?: RequestInit): Promise<Ap
   return payload;
 }
 
+export async function publicApiClient<T>(path: string, init?: RequestInit): Promise<ApiEnvelope<T>> {
+  const response = await fetch(`/api/public${path}`, {
+    ...init,
+    headers: { "Content-Type": "application/json", ...init?.headers },
+    cache: "no-store",
+  });
+  const payload = (await response.json()) as ApiEnvelope<T>;
+  if (!response.ok || payload.error) {
+    throw new ApiException(response.status, payload.error ?? { code: "UNKNOWN_ERROR", message: "Terjadi kesalahan" }, payload.meta?.request_id);
+  }
+  return payload;
+}
+
 export async function serverApi<T>(path: string): Promise<ApiEnvelope<T> | null> {
   const base = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
   try {

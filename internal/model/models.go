@@ -197,6 +197,30 @@ type Payment struct {
 	PaidAt            *time.Time     `json:"paid_at"`
 	Metadata          map[string]any `json:"metadata" gorm:"serializer:json"`
 }
+type PublicInvoiceLink struct {
+	ID                uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
+	BranchID          uuid.UUID  `json:"branch_id"`
+	SaleID            uuid.UUID  `json:"sale_id"`
+	CreatedBy         *uuid.UUID `json:"created_by"`
+	TokenHash         string     `json:"-"`
+	Source            string     `json:"source"`
+	ExpiresAt         time.Time  `json:"expires_at"`
+	RevokedAt         *time.Time `json:"revoked_at"`
+	DeliveredAt       *time.Time `json:"delivered_at"`
+	RecipientPhone    string     `json:"recipient_phone"`
+	ProviderMessageID string     `json:"provider_message_id"`
+	DeliveryError     string     `json:"delivery_error"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+}
+
+func (link *PublicInvoiceLink) BeforeCreate(*gorm.DB) error {
+	if link.ID == uuid.Nil {
+		link.ID = uuid.New()
+	}
+	return nil
+}
+
 type Account struct {
 	Base
 	BranchID *uuid.UUID `json:"branch_id"`

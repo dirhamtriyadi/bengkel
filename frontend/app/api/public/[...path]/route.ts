@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { apiBaseURL } from "@/lib/api-base";
+import { apiUnavailableResponse, forwardUpstreamJSON } from "@/lib/api-proxy";
 
 const base = apiBaseURL();
 
@@ -18,22 +19,15 @@ async function proxy(request: NextRequest, parts: string[]) {
       cache: "no-store",
       redirect: "manual",
     });
-    return new NextResponse(await upstream.arrayBuffer(), {
-      status: upstream.status,
-      headers: {
-        "Cache-Control": "no-store",
-        "Content-Type": upstream.headers.get("content-type") ?? "application/json",
-        "Referrer-Policy": "no-referrer",
-        "X-Request-ID": upstream.headers.get("x-request-id") ?? "",
-        "X-Robots-Tag": "noindex, nofollow, noarchive",
-      },
+    return await forwardUpstreamJSON(upstream, {
+      "Referrer-Policy": "no-referrer",
+      "X-Robots-Tag": "noindex, nofollow, noarchive",
     });
   } catch {
-    const requestId = crypto.randomUUID();
-    return NextResponse.json(
-      { meta: { request_id: requestId }, error: { code: "API_UNAVAILABLE", message: "Layanan invoice sedang tidak tersedia" } },
-      { status: 503, headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Request-ID": requestId } },
-    );
+    return apiUnavailableResponse("Layanan invoice sedang tidak tersedia", {
+      "Referrer-Policy": "no-referrer",
+      "X-Robots-Tag": "noindex, nofollow, noarchive",
+    });
   }
 }
 

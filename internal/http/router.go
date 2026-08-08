@@ -23,6 +23,7 @@ func NewRouter(cfg config.Config, db *gorm.DB, log *zap.Logger) *gin.Engine {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	r := gin.New()
+	r.HandleMethodNotAllowed = true
 	r.Use(middleware.RequestID(), middleware.Recover(log), middleware.Logger(log), middleware.CORS(cfg.CORSOrigins))
 	if err := r.SetTrustedProxies(cfg.TrustedProxies); err != nil {
 		log.Warn("trusted proxies rejected", zap.Error(err))
@@ -137,5 +138,11 @@ func NewRouter(cfg config.Config, db *gorm.DB, log *zap.Logger) *gin.Engine {
 		secured.GET("/cms/pages", middleware.RequirePermission("cms.manage"), h.CMSPages)
 		secured.PUT("/cms/pages/:slug", middleware.RequirePermission("cms.manage"), h.UpsertCMSPage)
 	}
+	r.NoRoute(func(c *gin.Context) {
+		response.Error(c, http.StatusNotFound, "ROUTE_NOT_FOUND", "Endpoint API tidak ditemukan")
+	})
+	r.NoMethod(func(c *gin.Context) {
+		response.Error(c, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Metode HTTP tidak didukung untuk endpoint ini")
+	})
 	return r
 }

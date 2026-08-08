@@ -621,6 +621,74 @@ const docTemplate = `{
                 }
             }
         },
+        "/integrations/midtrans": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Server Key dan Client Key tidak pernah dikembalikan; response hanya menunjukkan apakah key terenkripsi sudah tersimpan.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Konfigurasi Midtrans cabang",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Merchant ID, mode, Server Key, dan Client Key disimpan di database. Kedua key dienkripsi dan input kosong mempertahankan key lama.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Simpan konfigurasi Midtrans cabang",
+                "parameters": [
+                    {
+                        "description": "Konfigurasi Midtrans",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handler.midtransSettingsInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
         "/integrations/whatsapp": {
             "get": {
                 "security": [
@@ -2966,6 +3034,42 @@ const docTemplate = `{
                 "password": {
                     "type": "string",
                     "minLength": 8
+                }
+            }
+        },
+        "internal_http_handler.midtransSettingsInput": {
+            "type": "object",
+            "required": [
+                "environment"
+            ],
+            "properties": {
+                "clear_client_key": {
+                    "type": "boolean"
+                },
+                "clear_server_key": {
+                    "type": "boolean"
+                },
+                "client_key": {
+                    "type": "string",
+                    "maxLength": 2048
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "environment": {
+                    "type": "string",
+                    "enum": [
+                        "sandbox",
+                        "production"
+                    ]
+                },
+                "merchant_id": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "server_key": {
+                    "type": "string",
+                    "maxLength": 2048
                 }
             }
         },

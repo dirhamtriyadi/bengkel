@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"bengkel/internal/http/response"
@@ -15,6 +16,8 @@ type midtransSnapResult struct {
 	Token       string `json:"token"`
 	RedirectURL any    `json:"redirect_url,omitempty"`
 	Environment string `json:"environment"`
+	ClientKey   string `json:"client_key"`
+	SnapURL     string `json:"snap_url"`
 	PublicURL   string `json:"public_url,omitempty"`
 }
 
@@ -29,18 +32,31 @@ func (err *operationError) respond(c *gin.Context) {
 }
 
 func (h *Handler) getOrCreateMidtransSnap(ctx context.Context, payment *model.Payment, sale model.Sale, customer model.Customer, finishURL string) (midtransSnapResult, *operationError) {
-	if h.Config.MidtransServerKey == "" {
-		return midtransSnapResult{}, &operationError{http.StatusServiceUnavailable, "MIDTRANS_NOT_CONFIGURED", "Kunci server Midtrans belum dikonfigurasi"}
-	}
 	if payment.Method != "midtrans" || payment.Status != "pending" {
 		return midtransSnapResult{}, &operationError{http.StatusUnprocessableEntity, "PAYMENT_NOT_PAYABLE", "Pembayaran ini tidak dapat diproses dengan Midtrans"}
 	}
-	environment := "sandbox"
-	if h.Config.MidtransIsProduction {
-		environment = "production"
+	configuration, err := h.midtransCredentialsForPayment(*payment)
+	if err != nil {
+		return midtransSnapResult{}, midtransConfigurationOperationError(err)
+	}
+	if payment.Metadata == nil {
+		payment.Metadata = map[string]any{}
+	}
+	if _, exists := payment.Metadata[midtransCredentialsSnapshotMetadataKey]; !exists {
+		snapshot, snapshotError := h.encryptMidtransPaymentSnapshot(configuration, payment.BranchID, payment.ID)
+		if snapshotError != nil {
+			return midtransSnapResult{}, &operationError{http.StatusInternalServerError, "INTERNAL_ERROR", "Terjadi kesalahan internal"}
+		}
+		payment.Metadata[midtransCredentialsSnapshotMetadataKey] = snapshot
 	}
 	if token, ok := payment.Metadata["snap_token"].(string); ok && token != "" {
-		return midtransSnapResult{Token: token, RedirectURL: payment.Metadata["redirect_url"], Environment: environment}, nil
+		if err := h.DB.WithContext(ctx).Model(payment).Update("metadata", payment.Metadata).Error; err != nil {
+			return midtransSnapResult{}, &operationError{http.StatusInternalServerError, "INTERNAL_ERROR", "Terjadi kesalahan internal"}
+		}
+		return midtransSnapResult{
+			Token: token, RedirectURL: payment.Metadata["redirect_url"], Environment: configuration.Environment,
+			ClientKey: configuration.ClientKey, SnapURL: configuration.snapURL(),
+		}, nil
 	}
 
 	feeSettings, err := h.midtransFeeSettings(payment.BranchID)
@@ -69,7 +85,7 @@ func (h *Handler) getOrCreateMidtransSnap(ctx context.Context, payment *model.Pa
 	if snapAmount == 0 {
 		snapAmount = payment.Amount
 	}
-	gateway := paymentgateway.NewMidtrans(h.Config.MidtransServerKey, h.Config.MidtransIsProduction)
+	gateway := paymentgateway.NewMidtrans(configuration.ServerKey, configuration.production())
 	result, err := gateway.CreateSnap(ctx, paymentgateway.SnapInput{
 		IdempotencyKey:   payment.ID.String(),
 		OrderID:          payment.ProviderReference,
@@ -87,17 +103,30 @@ func (h *Handler) getOrCreateMidtransSnap(ctx context.Context, payment *model.Pa
 	if err != nil {
 		return midtransSnapResult{}, &operationError{http.StatusBadGateway, "MIDTRANS_REJECTED", "Midtrans menolak pembuatan transaksi: " + err.Error()}
 	}
-	if payment.Metadata == nil {
-		payment.Metadata = map[string]any{}
-	}
 	payment.Metadata["snap_token"] = result.Token
 	payment.Metadata["redirect_url"] = result.RedirectURL
-	payment.Metadata["environment"] = environment
+	payment.Metadata["environment"] = configuration.Environment
 	payment.Metadata["sdk"] = "midtrans-go"
 	payment.Metadata["automatic_fee"] = feeSettings.AutomaticFee
 	payment.Metadata["fee_config_snapshot"] = feeSettings
 	if err := h.DB.WithContext(ctx).Model(payment).Update("metadata", payment.Metadata).Error; err != nil {
 		return midtransSnapResult{}, &operationError{http.StatusInternalServerError, "INTERNAL_ERROR", "Terjadi kesalahan internal"}
 	}
-	return midtransSnapResult{Token: result.Token, RedirectURL: result.RedirectURL, Environment: environment}, nil
+	return midtransSnapResult{
+		Token: result.Token, RedirectURL: result.RedirectURL, Environment: configuration.Environment,
+		ClientKey: configuration.ClientKey, SnapURL: configuration.snapURL(),
+	}, nil
+}
+
+func midtransConfigurationOperationError(err error) *operationError {
+	switch {
+	case errors.Is(err, errMidtransDisabled):
+		return &operationError{http.StatusServiceUnavailable, "MIDTRANS_DISABLED", "Integrasi Midtrans belum diaktifkan pada pengaturan cabang"}
+	case errors.Is(err, errMidtransNotConfigured):
+		return &operationError{http.StatusServiceUnavailable, "MIDTRANS_NOT_CONFIGURED", "Server Key, Client Key, atau mode Midtrans belum dikonfigurasi pada pengaturan cabang"}
+	case errors.Is(err, errMidtransSecretInvalid):
+		return &operationError{http.StatusServiceUnavailable, "MIDTRANS_KEY_UNREADABLE", "Key Midtrans tidak dapat dibaca. Simpan ulang key pada pengaturan"}
+	default:
+		return &operationError{http.StatusInternalServerError, "INTERNAL_ERROR", "Terjadi kesalahan internal"}
+	}
 }

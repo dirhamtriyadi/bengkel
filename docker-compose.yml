@@ -61,8 +61,6 @@ services:
       context: frontend
       args:
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
-        NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: ${MIDTRANS_CLIENT_KEY:-}
-        NEXT_PUBLIC_MIDTRANS_SNAP_URL: ${NEXT_PUBLIC_MIDTRANS_SNAP_URL:-https://app.sandbox.midtrans.com/snap/snap.js}
     environment:
       API_ORIGIN: http://api:8080
       # Next.js selalu mendengarkan port internal 3000.

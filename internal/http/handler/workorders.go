@@ -216,7 +216,8 @@ func (h *Handler) WorkOrderDetail(c *gin.Context) {
 		sale = &activeSale
 		var activePayment model.Payment
 		if err := h.DB.Where("sale_id=?", activeSale.ID).Order("created_at DESC").First(&activePayment).Error; err == nil {
-			payment = &activePayment
+			redacted := redactedPayment(activePayment)
+			payment = &redacted
 		}
 	}
 	response.OK(c, workOrderDetail{row, customer, vehicle, mechanic, items, subtotal, sale, payment})

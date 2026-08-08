@@ -211,7 +211,9 @@ Struktur ini tetap single tenant. Jika nanti menjadi SaaS, tambahkan `tenant_id`
 
 ## Midtrans
 
-Backend memakai SDK resmi [`github.com/midtrans/midtrans-go`](https://github.com/Midtrans/midtrans-go) untuk membuat transaksi Snap dan memverifikasi status transaksi. Isi `MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY`, dan `MIDTRANS_IS_PRODUCTION`. Untuk sandbox gunakan `MIDTRANS_IS_PRODUCTION=false` dan pastikan kedua key sama-sama berawalan `SB-Mid-`.
+Backend memakai SDK resmi [`github.com/midtrans/midtrans-go`](https://github.com/Midtrans/midtrans-go) untuk membuat transaksi Snap dan memverifikasi status transaksi. Kredensial tidak disimpan di `.env`. Masuk sebagai pengguna dengan permission `settings.manage`, buka **Pengaturan → Kredensial Midtrans**, pilih `sandbox` atau `production`, lalu masukkan Server Key dan Client Key untuk cabang aktif. Sandbox wajib memakai pasangan key `SB-Mid-server-…` dan `SB-Mid-client-…`; production memakai `Mid-server-…` dan `Mid-client-…`.
+
+Server Key dan Client Key dienkripsi AES-GCM pada baris `integration.midtrans` di tabel `settings`. Endpoint pengaturan hanya mengembalikan status `server_key_configured` dan `client_key_configured`; plaintext maupun ciphertext tidak pernah dikembalikan. Client Key yang memang diperlukan Snap.js hanya diberikan secara dinamis saat transaksi yang berhak dibayar meminta token Snap. Server Key hanya digunakan backend.
 
 Notification URL:
 
@@ -220,6 +222,8 @@ POST https://api.example.com/api/v1/payments/midtrans/notification
 ```
 
 Webhook memverifikasi SHA-512 signature dan mengecek ulang status serta nominal transaksi ke API Midtrans. Prosesnya idempotent terhadap status yang sama, lalu mem-posting sale dan jurnal hanya setelah `settlement` atau `capture` yang diterima.
+
+Setiap checkout Midtrans menyimpan snapshot kredensial dan mode dalam ciphertext yang terikat pada ID pembayaran. Rotasi key atau perpindahan mode sesudahnya tidak membuat webhook/sinkronisasi transaksi pending memakai key baru yang keliru. Karena kunci enkripsi diturunkan dari `JWT_REFRESH_SECRET`, rotasi secret tersebut mewajibkan pengisian ulang konfigurasi Midtrans dan dapat membuat snapshot transaksi pending lama tidak terbaca; selesaikan transaksi pending sebelum rotasi atau koordinasikan migrasi secret.
 
 ## Invoice publik melalui WhatsApp
 

@@ -2,10 +2,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle2, Clock3, CreditCard, Printer, ReceiptText, ShieldCheck } from "lucide-react";
-import Script from "next/script";
 import { use, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { publicApiClient } from "@/lib/api";
+import { loadMidtransSnap, type MidtransSnapConfiguration } from "@/lib/midtrans";
 import { dateTime, rupiah } from "@/lib/utils";
 
 type PublicInvoice = {
@@ -37,11 +37,10 @@ type PublicInvoice = {
   expires_at: string;
 };
 
-type SnapResult = { token: string; redirect_url?: string; environment: string };
+type SnapResult = MidtransSnapConfiguration & { token: string; redirect_url?: string; environment: string };
 
 export default function PublicInvoicePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
-  const [snapReady, setSnapReady] = useState(false);
   const [paying, setPaying] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -73,9 +72,11 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ token:
     setNotice("");
     try {
       const result = await publicApiClient<SnapResult>(`/invoices/${encodedToken}/midtrans/snap`, { method: "POST" });
-      if (!result.data?.token || !window.snap) {
+      if (!result.data?.token) {
         throw new Error("Halaman pembayaran Midtrans belum siap. Muat ulang lalu coba lagi.");
       }
+      await loadMidtransSnap(result.data);
+      if (!window.snap) throw new Error("Halaman pembayaran Midtrans belum siap.");
       window.snap.pay(result.data.token, {
         onSuccess: () => { void syncPayment("Pembayaran diterima. Status invoice sedang diverifikasi."); },
         onPending: () => { void syncPayment("Instruksi pembayaran sudah dibuat. Selesaikan pembayaran sesuai channel yang dipilih."); },
@@ -97,12 +98,7 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ token:
 
   const paid = data.invoice.status === "paid" || data.payment.status === "paid";
   const failed = ["void", "failed", "cancelled"].includes(data.invoice.status) || data.payment.status === "failed";
-  const snapURL = data.payment.environment === "production"
-    ? "https://app.midtrans.com/snap/snap.js"
-    : process.env.NEXT_PUBLIC_MIDTRANS_SNAP_URL ?? "https://app.sandbox.midtrans.com/snap/snap.js";
-
   return <main className="receipt-page receipt-a4 mx-auto min-h-screen bg-white p-5 sm:p-10">
-    <Script src={snapURL} data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY} onLoad={() => setSnapReady(true)} onReady={() => setSnapReady(true)}/>
     <div className="print-hidden mb-6 flex items-center justify-between gap-3 rounded-2xl border bg-background p-4">
       <div className="flex items-center gap-3"><ShieldCheck className="size-6 text-emerald-600"/><div><p className="text-sm font-bold">Tautan pembayaran aman</p><p className="text-xs text-muted-foreground">Jangan bagikan tautan invoice ini.</p></div></div>
       <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="size-4"/>Cetak</Button>
@@ -132,7 +128,7 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ token:
         {data.payment.payment_channel && <div className="flex justify-between text-xs text-muted-foreground"><span>Channel</span><span className="uppercase">{data.payment.payment_channel.replaceAll("_", " ")}</span></div>}
       </div>
 
-      {data.payment.payable && <div className="print-hidden mt-8 rounded-2xl border bg-background p-5"><div className="flex items-start gap-3"><CreditCard className="mt-0.5 size-5 text-primary"/><div><p className="font-bold">Bayar online dengan Midtrans</p><p className="mt-1 text-sm text-muted-foreground">Pilih channel di halaman Midtrans. Nominal akhir termasuk biaya admin pelanggan akan dihitung sesuai channel dan pengaturan bengkel.</p></div></div><Button size="lg" className="mt-5 w-full" onClick={pay} disabled={paying || !snapReady}>{paying ? "Menyiapkan pembayaran..." : snapReady ? "Lanjut ke pembayaran" : "Memuat Midtrans..."}</Button></div>}
+      {data.payment.payable && <div className="print-hidden mt-8 rounded-2xl border bg-background p-5"><div className="flex items-start gap-3"><CreditCard className="mt-0.5 size-5 text-primary"/><div><p className="font-bold">Bayar online dengan Midtrans</p><p className="mt-1 text-sm text-muted-foreground">Pilih channel di halaman Midtrans. Nominal akhir termasuk biaya admin pelanggan akan dihitung sesuai channel dan pengaturan bengkel.</p></div></div><Button size="lg" className="mt-5 w-full" onClick={pay} disabled={paying}>{paying ? "Menyiapkan pembayaran..." : "Lanjut ke pembayaran"}</Button></div>}
 
       <footer className="mt-10 border-t pt-5 text-center text-xs text-muted-foreground"><p className="font-semibold text-foreground">Pembayaran diproses oleh Midtrans.</p><p className="mt-1">Hubungi {data.branch.name} jika detail invoice tidak sesuai.</p></footer>
     </section>

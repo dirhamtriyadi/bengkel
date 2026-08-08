@@ -252,6 +252,31 @@ definitions:
     - email
     - password
     type: object
+  internal_http_handler.midtransSettingsInput:
+    properties:
+      clear_client_key:
+        type: boolean
+      clear_server_key:
+        type: boolean
+      client_key:
+        maxLength: 2048
+        type: string
+      enabled:
+        type: boolean
+      environment:
+        enum:
+        - sandbox
+        - production
+        type: string
+      merchant_id:
+        maxLength: 100
+        type: string
+      server_key:
+        maxLength: 2048
+        type: string
+    required:
+    - environment
+    type: object
   internal_http_handler.productInput:
     properties:
       cost_price:
@@ -866,6 +891,50 @@ paths:
       summary: Statistik dashboard cabang
       tags:
       - Dashboard
+  /integrations/midtrans:
+    get:
+      description: Server Key dan Client Key tidak pernah dikembalikan; response hanya
+        menunjukkan apakah key terenkripsi sudah tersimpan.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Konfigurasi Midtrans cabang
+      tags:
+      - Payments
+    put:
+      consumes:
+      - application/json
+      description: Merchant ID, mode, Server Key, dan Client Key disimpan di database.
+        Kedua key dienkripsi dan input kosong mempertahankan key lama.
+      parameters:
+      - description: Konfigurasi Midtrans
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.midtransSettingsInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Simpan konfigurasi Midtrans cabang
+      tags:
+      - Payments
   /integrations/whatsapp:
     get:
       description: Token API tidak pernah dikembalikan; response hanya menunjukkan

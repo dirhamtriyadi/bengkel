@@ -141,10 +141,6 @@ func (h *Handler) PublicInvoiceMidtransSnap(c *gin.Context) {
 // @Router /public/invoices/{token}/midtrans/sync [post]
 func (h *Handler) PublicInvoiceMidtransSync(c *gin.Context) {
 	securePublicInvoiceHeaders(c)
-	if h.Config.MidtransServerKey == "" {
-		response.Error(c, http.StatusServiceUnavailable, "MIDTRANS_NOT_CONFIGURED", "Kunci server Midtrans belum dikonfigurasi")
-		return
-	}
 	bundle, err := h.loadPublicInvoice(c.Request.Context(), c.Param("token"))
 	if err != nil {
 		h.respondPublicInvoiceError(c, err)
@@ -360,10 +356,11 @@ func (h *Handler) publicInvoiceData(bundle publicInvoiceBundle) publicInvoiceDat
 	data.Payment.FeeBearer = bundle.Payment.FeeBearer
 	data.Payment.PaymentChannel = bundle.Payment.PaymentChannel
 	data.Payment.Environment = "sandbox"
-	if h.Config.MidtransIsProduction {
-		data.Payment.Environment = "production"
+	configuration, configurationError := h.midtransCredentialsForPayment(bundle.Payment)
+	if configurationError == nil {
+		data.Payment.Environment = configuration.Environment
 	}
-	data.Payment.Payable = bundle.Sale.Status == "pending" && bundle.Payment.Method == "midtrans" && bundle.Payment.Status == "pending"
+	data.Payment.Payable = configurationError == nil && bundle.Sale.Status == "pending" && bundle.Payment.Method == "midtrans" && bundle.Payment.Status == "pending"
 	data.ExpiresAt = bundle.Link.ExpiresAt
 	data.Items = make([]publicInvoiceItem, 0, len(bundle.Items))
 	for _, item := range bundle.Items {

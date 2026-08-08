@@ -666,8 +666,14 @@ func (h *Handler) Checkout(c *gin.Context) {
 	}
 	feeBearer := "merchant"
 	var feeSettings midtransFeeSettings
+	var midtransConfiguration midtransRuntimeConfig
 	if in.PaymentMethod == "midtrans" {
 		var err error
+		midtransConfiguration, err = h.midtransCredentials(branchID(c))
+		if err != nil {
+			h.respondMidtransConfigurationError(c, err)
+			return
+		}
 		feeSettings, err = h.midtransFeeSettings(branchID(c))
 		if err != nil {
 			response.Error(c, http.StatusUnprocessableEntity, "MIDTRANS_FEE_CONFIG_INVALID", err.Error())
@@ -786,6 +792,7 @@ func (h *Handler) Checkout(c *gin.Context) {
 			return err
 		}
 		payment = model.Payment{
+			Base:       model.Base{ID: uuid.New()},
 			BranchID:   branchID(c),
 			SaleID:     sale.ID,
 			Method:     in.PaymentMethod,
@@ -799,6 +806,11 @@ func (h *Handler) Checkout(c *gin.Context) {
 		}
 		if in.PaymentMethod == "midtrans" {
 			payment.ProviderReference = sale.Number
+			snapshot, snapshotError := h.encryptMidtransPaymentSnapshot(midtransConfiguration, payment.BranchID, payment.ID)
+			if snapshotError != nil {
+				return snapshotError
+			}
+			payment.Metadata[midtransCredentialsSnapshotMetadataKey] = snapshot
 		}
 		if err := tx.Create(&payment).Error; err != nil {
 			return err
@@ -834,7 +846,7 @@ func (h *Handler) Checkout(c *gin.Context) {
 		return
 	}
 	h.audit(c, "checkout", "sale", &sale.ID, nil, sale)
-	response.Created(c, checkoutResult{sale, payment, "/print/receipt/" + sale.ID.String()})
+	response.Created(c, checkoutResult{sale, redactedPayment(payment), "/print/receipt/" + sale.ID.String()})
 }
 
 func (h *Handler) consumeStock(tx *gorm.DB, saleID uuid.UUID, p model.Product, qty float64, c *gin.Context) error {
@@ -947,6 +959,9 @@ func (h *Handler) SaleDetail(c *gin.Context) {
 	var payments []model.Payment
 	h.DB.Where("sale_id=?", sale.ID).Find(&items)
 	h.DB.Where("sale_id=?", sale.ID).Find(&payments)
+	for index := range payments {
+		payments[index] = redactedPayment(payments[index])
+	}
 	var branch model.Branch
 	h.DB.First(&branch, "id=?", sale.BranchID)
 	response.OK(c, gin.H{"sale": sale, "items": items, "payments": payments, "branch": branch})
@@ -962,10 +977,6 @@ func (h *Handler) SaleDetail(c *gin.Context) {
 // @Failure 422 {object} response.Envelope
 // @Router /payments/{id}/midtrans/snap [post]
 func (h *Handler) CreateMidtransSnap(c *gin.Context) {
-	if h.Config.MidtransServerKey == "" {
-		response.Error(c, http.StatusServiceUnavailable, "MIDTRANS_NOT_CONFIGURED", "Kunci server Midtrans belum dikonfigurasi")
-		return
-	}
 	var payment model.Payment
 	if !h.findScoped(c, &payment) {
 		return
@@ -1145,6 +1156,7 @@ func (h *Handler) Settings(c *gin.Context) {
 	h.DB.Where("branch_id=?", branchID(c)).Order("key").Find(&rows)
 	for index := range rows {
 		h.redactWhatsAppSetting(&rows[index])
+		h.redactMidtransSetting(&rows[index])
 	}
 	response.OK(c, rows)
 }
@@ -1157,8 +1169,8 @@ func (h *Handler) UpsertSetting(c *gin.Context) {
 		return
 	}
 	key := c.Param("key")
-	if key == whatsAppSettingKey {
-		response.Error(c, http.StatusConflict, "SETTING_REQUIRES_DEDICATED_ENDPOINT", "Gunakan endpoint integrasi WhatsApp agar token API disimpan terenkripsi")
+	if key == whatsAppSettingKey || key == midtransSettingKey {
+		response.Error(c, http.StatusConflict, "SETTING_REQUIRES_DEDICATED_ENDPOINT", "Gunakan endpoint integrasi khusus agar kredensial disimpan terenkripsi")
 		return
 	}
 	if key == midtransChannelsSettingKey {
@@ -1268,10 +1280,6 @@ var (
 // @Success 200 {object} response.Envelope
 // @Router /payments/{id}/midtrans/sync [post]
 func (h *Handler) SyncMidtransPayment(c *gin.Context) {
-	if h.Config.MidtransServerKey == "" {
-		response.Error(c, http.StatusServiceUnavailable, "MIDTRANS_NOT_CONFIGURED", "Kunci server Midtrans belum dikonfigurasi")
-		return
-	}
 	var payment model.Payment
 	if !h.findScoped(c, &payment) {
 		return
@@ -1303,18 +1311,23 @@ func (h *Handler) MidtransNotification(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
-	sum := sha512.Sum512([]byte(in.OrderID + in.StatusCode + in.GrossAmount + h.Config.MidtransServerKey))
-	if !strings.EqualFold(hex.EncodeToString(sum[:]), in.SignatureKey) {
-		response.Error(c, http.StatusUnauthorized, "INVALID_SIGNATURE", "Signature Midtrans tidak valid")
-		return
-	}
 	var payment model.Payment
 	if err := h.DB.Where("provider='midtrans' AND provider_reference=?", in.OrderID).First(&payment).Error; err != nil {
 		response.Error(c, http.StatusNotFound, "PAYMENT_NOT_FOUND", "Pembayaran tidak ditemukan")
 		return
 	}
+	configuration, err := h.midtransCredentialsForPayment(payment)
+	if err != nil {
+		h.respondMidtransConfigurationError(c, err)
+		return
+	}
+	sum := sha512.Sum512([]byte(in.OrderID + in.StatusCode + in.GrossAmount + configuration.ServerKey))
+	if !strings.EqualFold(hex.EncodeToString(sum[:]), in.SignatureKey) {
+		response.Error(c, http.StatusUnauthorized, "INVALID_SIGNATURE", "Signature Midtrans tidak valid")
+		return
+	}
 
-	transaction, err := h.checkMidtransTransaction(c.Request.Context(), payment)
+	transaction, err := h.checkMidtransTransactionWithConfig(c.Request.Context(), payment, configuration)
 	if err != nil {
 		h.respondMidtransStatusError(c, err)
 		return
@@ -1328,7 +1341,15 @@ func (h *Handler) MidtransNotification(c *gin.Context) {
 }
 
 func (h *Handler) checkMidtransTransaction(ctx context.Context, payment model.Payment) (*paymentgateway.TransactionStatus, error) {
-	gateway := paymentgateway.NewMidtrans(h.Config.MidtransServerKey, h.Config.MidtransIsProduction)
+	configuration, err := h.midtransCredentialsForPayment(payment)
+	if err != nil {
+		return nil, err
+	}
+	return h.checkMidtransTransactionWithConfig(ctx, payment, configuration)
+}
+
+func (h *Handler) checkMidtransTransactionWithConfig(ctx context.Context, payment model.Payment, configuration midtransRuntimeConfig) (*paymentgateway.TransactionStatus, error) {
+	gateway := paymentgateway.NewMidtrans(configuration.ServerKey, configuration.production())
 	transaction, err := gateway.CheckTransaction(ctx, payment.ProviderReference)
 	if err != nil {
 		var providerError *paymentgateway.Error
@@ -1375,6 +1396,10 @@ func parseMidtransAmount(value string) (int64, error) {
 }
 
 func (h *Handler) respondMidtransStatusError(c *gin.Context, err error) {
+	if errors.Is(err, errMidtransDisabled) || errors.Is(err, errMidtransNotConfigured) || errors.Is(err, errMidtransSecretInvalid) {
+		h.respondMidtransConfigurationError(c, err)
+		return
+	}
 	if errors.Is(err, errMidtransStatusInvalid) {
 		response.Error(c, http.StatusBadGateway, "MIDTRANS_STATUS_INVALID", "Respons status transaksi Midtrans tidak valid")
 		return

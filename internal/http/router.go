@@ -131,6 +131,8 @@ func NewRouter(cfg config.Config, db *gorm.DB, log *zap.Logger) *gin.Engine {
 		secured.POST("/integrations/whatsapp/session/start", middleware.RequirePermission("settings.manage"), h.StartWhatsAppSession)
 		secured.GET("/integrations/whatsapp/session/status", middleware.RequirePermission("settings.manage"), h.WhatsAppSessionStatus)
 		secured.GET("/integrations/whatsapp/session/qr", middleware.RequirePermission("settings.manage"), h.WhatsAppSessionQR)
+		secured.GET("/integrations/midtrans", middleware.RequirePermission("settings.manage"), h.MidtransIntegration)
+		secured.PUT("/integrations/midtrans", middleware.RequirePermission("settings.manage"), h.UpdateMidtransIntegration)
 		secured.GET("/cms/pages", middleware.RequirePermission("cms.manage"), h.CMSPages)
 		secured.PUT("/cms/pages/:slug", middleware.RequirePermission("cms.manage"), h.UpsertCMSPage)
 	}

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { WhatsAppIntegrationCard } from "@/components/whatsapp-integration-card";
+import { MidtransIntegrationCard } from "@/components/midtrans-integration-card";
 
 type MidtransChannel = {
   payment_type: string;
@@ -126,6 +127,8 @@ export default function SettingsPage() {
       <p className="mt-2 text-muted-foreground">Konfigurasi cabang, pembayaran, dan landing page.</p>
     </div>
     {message && <p className="rounded-xl border bg-white p-4 text-sm">{message}</p>}
+
+    <MidtransIntegrationCard />
 
     <WhatsAppIntegrationCard />
 

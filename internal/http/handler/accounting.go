@@ -413,6 +413,13 @@ func (h *Handler) DeleteJournal(c *gin.Context) {
 	response.OK(c, gin.H{"message": "Jurnal draft berhasil dihapus"})
 }
 
+type paymentResponseRow struct {
+	model.Payment
+	SaleNumber string `json:"sale_number"`
+	SaleTotal  int64  `json:"sale_total"`
+	SaleStatus string `json:"sale_status,omitempty"`
+}
+
 // ListPayments godoc
 // @Summary Daftar pembayaran
 // @Tags Payments
@@ -421,10 +428,12 @@ func (h *Handler) DeleteJournal(c *gin.Context) {
 // @Success 200 {object} response.Envelope
 // @Router /payments [get]
 func (h *Handler) ListPayments(c *gin.Context) {
-	query := h.DB.Table("payments p").Select("p.*,s.number sale_number,s.grand_total sale_total").
+	query := h.DB.Table("payments p").Select(`p.id,p.created_at,p.updated_at,p.branch_id,p.sale_id,p.method,p.provider,
+		p.provider_reference,p.status,p.base_amount,p.amount,p.fee,p.customer_fee,p.provider_fee,p.fee_bearer,
+		p.payment_channel,p.paid_at,(p.metadata - ?) metadata,s.number sale_number,s.grand_total sale_total`, midtransCredentialsSnapshotMetadataKey).
 		Joins("JOIN sales s ON s.id=p.sale_id").
 		Where("p.branch_id=? AND p.deleted_at IS NULL", branchID(c))
-	rows := make([]map[string]any, 0)
+	rows := make([]paymentResponseRow, 0)
 	list(c, query, &rows, []string{"s.number", "p.method", "p.provider", "p.provider_reference", "p.status"})
 }
 
@@ -442,8 +451,10 @@ func (h *Handler) PaymentDetail(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "INVALID_ID", "ID pembayaran tidak valid")
 		return
 	}
-	var row map[string]any
-	err = h.DB.Table("payments p").Select("p.*,s.number sale_number,s.grand_total sale_total,s.status sale_status").
+	var row paymentResponseRow
+	err = h.DB.Table("payments p").Select(`p.id,p.created_at,p.updated_at,p.branch_id,p.sale_id,p.method,p.provider,
+		p.provider_reference,p.status,p.base_amount,p.amount,p.fee,p.customer_fee,p.provider_fee,p.fee_bearer,
+		p.payment_channel,p.paid_at,(p.metadata - ?) metadata,s.number sale_number,s.grand_total sale_total,s.status sale_status`, midtransCredentialsSnapshotMetadataKey).
 		Joins("JOIN sales s ON s.id=p.sale_id").Where("p.id=? AND p.branch_id=? AND p.deleted_at IS NULL", id, branchID(c)).Take(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		response.Error(c, http.StatusNotFound, "PAYMENT_NOT_FOUND", "Pembayaran tidak ditemukan")

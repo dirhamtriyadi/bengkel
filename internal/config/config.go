@@ -14,8 +14,7 @@ type Config struct {
 	AppName, Environment, HTTPPort, DatabaseURL, AccessSecret, RefreshSecret string
 	AccessTTL, RefreshTTL                                                    time.Duration
 	CORSOrigins, TrustedProxies                                              []string
-	FrontendURL, MidtransServerKey, MidtransClientKey                        string
-	MidtransIsProduction                                                     bool
+	FrontendURL                                                              string
 	PublicInvoiceTTL                                                         time.Duration
 }
 
@@ -39,9 +38,7 @@ func Load() (Config, error) {
 		AccessSecret: os.Getenv("JWT_ACCESS_SECRET"), RefreshSecret: os.Getenv("JWT_REFRESH_SECRET"),
 		AccessTTL: accessTTL, RefreshTTL: refreshTTL, CORSOrigins: split(get("CORS_ORIGINS", "http://localhost:3000")),
 		TrustedProxies: split(os.Getenv("TRUSTED_PROXIES")), FrontendURL: get("FRONTEND_URL", "http://localhost:3000"),
-		MidtransServerKey: os.Getenv("MIDTRANS_SERVER_KEY"), MidtransClientKey: os.Getenv("MIDTRANS_CLIENT_KEY"),
-		MidtransIsProduction: get("MIDTRANS_IS_PRODUCTION", "false") == "true",
-		PublicInvoiceTTL:     publicInvoiceTTL,
+		PublicInvoiceTTL: publicInvoiceTTL,
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("DATABASE_URL is required")

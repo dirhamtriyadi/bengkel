@@ -46,7 +46,7 @@ func TestBuildSnapRequestMapUsesMidtransAutomaticFeePerChannel(t *testing.T) {
 		Amount:          100000,
 		ItemID:          "sale-id",
 		ItemName:        "Pembayaran INV-003",
-		EnabledPayments: []string{"qris", "bank_transfer"},
+		EnabledPayments: []string{"qris", "bank_transfer", "qris"},
 		AutomaticFee:    true,
 		PaymentFeeConfig: []PaymentFeeConfig{
 			{PaymentType: "qris", Acquirer: "gopay", CustomerPercentage: 100},
@@ -58,6 +58,10 @@ func TestBuildSnapRequestMapUsesMidtransAutomaticFeePerChannel(t *testing.T) {
 	if transaction["gross_amount"] != int64(100000) {
 		t.Fatalf("gross amount must remain the original invoice amount: %v", transaction["gross_amount"])
 	}
+	enabledPayments := (*request)["enabled_payments"].([]string)
+	if len(enabledPayments) != 2 || enabledPayments[0] != "other_qris" || enabledPayments[1] != "bank_transfer" {
+		t.Fatalf("unexpected enabled payments: %#v", enabledPayments)
+	}
 	imposition := (*request)["customer_imposed_payment_fee"].(map[string]any)
 	if imposition["enable"] != true {
 		t.Fatal("automatic fee imposition must be enabled")
@@ -68,5 +72,25 @@ func TestBuildSnapRequestMapUsesMidtransAutomaticFeePerChannel(t *testing.T) {
 	}
 	if configs[0]["acquirer"] != "gopay" {
 		t.Fatalf("unexpected QRIS acquirer: %#v", configs[0])
+	}
+}
+
+func TestBuildSnapRequestMapOmitsAutomaticFeeByDefault(t *testing.T) {
+	request := BuildSnapRequestMap(SnapInput{
+		OrderID:         "INV-004",
+		Amount:          100000,
+		ItemID:          "sale-id",
+		EnabledPayments: []string{"qris"},
+		PaymentFeeConfig: []PaymentFeeConfig{
+			{PaymentType: "qris", Acquirer: "gopay", CustomerPercentage: 100},
+		},
+	})
+
+	if _, exists := (*request)["customer_imposed_payment_fee"]; exists {
+		t.Fatal("automatic fee extension must not be sent unless explicitly enabled")
+	}
+	enabledPayments := (*request)["enabled_payments"].([]string)
+	if len(enabledPayments) != 1 || enabledPayments[0] != "other_qris" {
+		t.Fatalf("unexpected enabled payments: %#v", enabledPayments)
 	}
 }

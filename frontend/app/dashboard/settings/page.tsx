@@ -33,7 +33,7 @@ type CMSPage = {
 };
 
 const defaultFees: MidtransFeeSettings = {
-  automatic_fee: true,
+  automatic_fee: false,
   channels: [
     { payment_type: "bca_va", label: "BCA Virtual Account", enabled: true, customer_percentage: 100, fee_percentage: 0, fixed_fee: 4000, tax_percentage: 11 },
     { payment_type: "bni_va", label: "BNI Virtual Account", enabled: true, customer_percentage: 100, fee_percentage: 0, fixed_fee: 4000, tax_percentage: 11 },
@@ -136,7 +136,7 @@ export default function SettingsPage() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><CreditCard className="size-5" />Biaya payment gateway per channel</CardTitle>
         <CardDescription>
-          Porsi pelanggan dikirim ke Automatic Fee Imposition Midtrans. Nilai 100% berarti seluruh fee channel dibayar pelanggan, 0% berarti seluruhnya ditanggung bengkel.
+          Atur channel yang ditampilkan di Snap dan referensi biayanya. Automatic Fee Imposition hanya boleh digunakan jika sudah diaktifkan Midtrans untuk Merchant ID Anda.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -148,8 +148,8 @@ export default function SettingsPage() {
             onChange={(event) => setFees((current) => ({ ...current, automatic_fee: event.target.checked }))}
           />
           <span>
-            <strong className="block">Gunakan perhitungan otomatis Midtrans</strong>
-            <span className="text-muted-foreground">Direkomendasikan agar nominal mengikuti MDR dan biaya transaksi yang berlaku pada akun Midtrans.</span>
+            <strong className="block">Aktifkan Automatic Fee Imposition Midtrans</strong>
+            <span className="text-muted-foreground">Biarkan nonaktif jika fitur ini belum dikonfirmasi aktif oleh Midtrans. Jika dipaksakan, metode pembayaran dapat tampil tetapi tidak bisa dipilih.</span>
           </span>
         </label>
         <div className="overflow-x-auto rounded-xl border">
@@ -190,7 +190,7 @@ export default function SettingsPage() {
           </table>
         </div>
         <p className="text-xs text-muted-foreground">
-          Referensi MDR, biaya tetap, dan pajak dipakai untuk rekonsiliasi beban merchant. Nominal yang ditagihkan ke pelanggan tetap memakai hasil aktual Midtrans saat channel dipilih.
+          Saat Automatic Fee nonaktif, biaya provider ditanggung bengkel dan angka MDR di atas hanya dipakai sebagai referensi rekonsiliasi. Perubahan hanya berlaku untuk token pembayaran baru.
         </p>
         <Button disabled={saving} onClick={saveFee}><Save className="size-4" />Simpan konfigurasi channel</Button>
       </CardContent>

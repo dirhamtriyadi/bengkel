@@ -32,7 +32,9 @@ type midtransChannelSettings struct {
 
 func defaultMidtransFeeSettings() midtransFeeSettings {
 	return midtransFeeSettings{
-		AutomaticFee: true,
+		// Automatic Fee Imposition is an account-level Midtrans capability.
+		// Keep it opt-in so a merchant without that capability can still pay.
+		AutomaticFee: false,
 		Channels: []midtransChannelSettings{
 			{PaymentType: "bca_va", Label: "BCA Virtual Account", Enabled: true, CustomerPercentage: 100, FixedFee: 4000, TaxPercentage: 11},
 			{PaymentType: "bni_va", Label: "BNI Virtual Account", Enabled: true, CustomerPercentage: 100, FixedFee: 4000, TaxPercentage: 11},

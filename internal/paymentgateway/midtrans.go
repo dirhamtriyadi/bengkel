@@ -197,10 +197,10 @@ func BuildSnapRequestMap(input SnapInput) *snap.RequestParamWithMap {
 	if request.Callbacks != nil && request.Callbacks.Finish != "" {
 		payload["callbacks"] = map[string]any{"finish": request.Callbacks.Finish}
 	}
-	if len(input.EnabledPayments) > 0 {
-		payload["enabled_payments"] = input.EnabledPayments
+	if enabledPayments := normalizeSnapEnabledPayments(input.EnabledPayments); len(enabledPayments) > 0 {
+		payload["enabled_payments"] = enabledPayments
 	}
-	if input.AutomaticFee {
+	if input.AutomaticFee && len(input.PaymentFeeConfig) > 0 {
 		configs := make([]map[string]any, 0, len(input.PaymentFeeConfig))
 		for _, config := range input.PaymentFeeConfig {
 			item := map[string]any{
@@ -218,6 +218,28 @@ func BuildSnapRequestMap(input SnapInput) *snap.RequestParamWithMap {
 		}
 	}
 	return &payload
+}
+
+func normalizeSnapEnabledPayments(values []string) []string {
+	payments := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		paymentType := strings.ToLower(strings.TrimSpace(value))
+		// Snap uses other_qris in enabled_payments, while transaction status
+		// responses and the internal reconciliation key use qris.
+		if paymentType == "qris" {
+			paymentType = "other_qris"
+		}
+		if paymentType == "" {
+			continue
+		}
+		if _, exists := seen[paymentType]; exists {
+			continue
+		}
+		seen[paymentType] = struct{}{}
+		payments = append(payments, paymentType)
+	}
+	return payments
 }
 
 func amountString(value any) string {

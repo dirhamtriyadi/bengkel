@@ -40,7 +40,9 @@ func TestParseMidtransFeeSettingsRejectsDuplicateAndInvalidPercentage(t *testing
 
 func TestMidtransFeeBearerIsMerchantWhenAutomaticFeeDisabled(t *testing.T) {
 	settings := defaultMidtransFeeSettings()
-	settings.AutomaticFee = false
+	if settings.AutomaticFee {
+		t.Fatal("automatic fee must be opt-in because it requires merchant activation")
+	}
 	if got := settings.feeBearer(); got != "merchant" {
 		t.Fatalf("fee bearer = %s, want merchant", got)
 	}

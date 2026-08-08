@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Clock3, Gauge, MapPin, ShieldCheck, Wrench } from "lucide-react";
-import { serverApi } from "@/lib/api";
+import { serverApi } from "@/lib/server-api";
 
 type HomeContent={hero?:{eyebrow?:string;title?:string;description?:string;primary_cta?:string};features?:{title:string;description:string}[]};
 type CMSPage={meta_title:string;meta_description:string;content:HomeContent};

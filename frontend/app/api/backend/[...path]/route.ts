@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-const base=process.env.API_URL??process.env.NEXT_PUBLIC_API_URL??"http://localhost:8080/api/v1";
+import { apiBaseURL } from "@/lib/api-base";
+const base=apiBaseURL();
 
 async function proxy(request:NextRequest,parts:string[]){
   const jar=await cookies();let access=jar.get("access_token")?.value;const rawBody=["GET","HEAD"].includes(request.method)?undefined:await request.arrayBuffer();

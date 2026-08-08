@@ -35,12 +35,3 @@ export async function publicApiClient<T>(path: string, init?: RequestInit): Prom
   }
   return payload;
 }
-
-export async function serverApi<T>(path: string): Promise<ApiEnvelope<T> | null> {
-  const base = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
-  try {
-    const response = await fetch(`${base}${path}`, { next: { revalidate: 60 } });
-    if (!response.ok) return null;
-    return await response.json();
-  } catch { return null; }
-}

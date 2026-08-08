@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiBaseURL } from "@/lib/api-base";
 
-const base = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
+const base = apiBaseURL();
 
 async function proxy(request: NextRequest, parts: string[]) {
   const path = parts.map(encodeURIComponent).join("/");

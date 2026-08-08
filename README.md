@@ -65,8 +65,10 @@ Komunikasi antarkontainer tidak pernah memakai port host:
 
 ```text
 postgres://bengkel:PASSWORD@postgres:5432/bengkel
-http://api:8080/api/v1
+API_ORIGIN=http://api:8080
 ```
+
+`API_ORIGIN` hanya berisi skema, host, dan port. Prefix kontrak `/api/v1` dipusatkan di `frontend/lib/api-base.ts`, bukan ditulis pada environment frontend. Versi API tetap bagian dari kontrak client sehingga perpindahan ke v2 dilakukan eksplisit tanpa diam-diam mengubah perilaku client v1.
 
 Jangan mengubah `HTTP_PORT` mengikuti port publik API. Compose mengunci proses Go di port `8080`; deployment production juga berhenti dengan pesan yang jelas jika `HTTP_PORT` atau port PostgreSQL internal keliru.
 

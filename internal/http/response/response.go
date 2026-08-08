@@ -28,6 +28,8 @@ type Envelope struct {
 	Error *APIError `json:"error,omitempty"`
 }
 
+const ErrorCodeContextKey = "api_error_code"
+
 func OK(c *gin.Context, data any) {
 	c.JSON(http.StatusOK, Envelope{Data: data, Meta: &Meta{RequestID: requestID(c)}})
 }
@@ -42,6 +44,7 @@ func Paginated(c *gin.Context, data any, page, perPage int, total int64) {
 	c.JSON(http.StatusOK, Envelope{Data: data, Meta: &Meta{RequestID: requestID(c), Page: page, PerPage: perPage, Total: total, LastPage: last}})
 }
 func Error(c *gin.Context, status int, code, message string, details ...FieldError) {
+	c.Set(ErrorCodeContextKey, code)
 	c.AbortWithStatusJSON(status, Envelope{Meta: &Meta{RequestID: requestID(c)}, Error: &APIError{Code: code, Message: message, Details: details}})
 }
 func requestID(c *gin.Context) string {

@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   if (!decoded.valid) return decoded.response;
   const payload = decoded.payload;
   if (upstream.ok && (!payload.data?.access_token || !payload.data.refresh_token || !payload.data.expires_at)) {
-    return apiErrorResponse(502, "UPSTREAM_INVALID_RESPONSE", "Respons login backend tidak lengkap.");
+    return apiErrorResponse(424, "UPSTREAM_INVALID_RESPONSE", "Respons login backend tidak lengkap.", { "X-Upstream-Status": "502" });
   }
 
   const response = apiEnvelopeResponse(payload, upstream.status, decoded.requestId);

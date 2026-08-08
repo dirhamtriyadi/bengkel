@@ -44,7 +44,7 @@ async function proxy(request: NextRequest, parts: string[]) {
         if (!decoded.valid) return decoded.response;
         const tokens = decoded.payload.data;
         if (!tokens?.access_token || !tokens.refresh_token || !tokens.expires_at) {
-          return apiErrorResponse(502, "UPSTREAM_INVALID_RESPONSE", "Respons refresh token backend tidak lengkap.");
+          return apiErrorResponse(424, "UPSTREAM_INVALID_RESPONSE", "Respons refresh token backend tidak lengkap.", { "X-Upstream-Status": "502" });
         }
         access = tokens.access_token;
         jar.set("access_token", access, {

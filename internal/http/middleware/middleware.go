@@ -28,7 +28,17 @@ func Logger(log *zap.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		c.Next()
-		log.Info("http request", zap.String("method", c.Request.Method), zap.String("path", c.FullPath()), zap.Int("status", c.Writer.Status()), zap.Duration("latency", time.Since(start)), zap.String("request_id", c.GetString("request_id")))
+		fields := []zap.Field{
+			zap.String("method", c.Request.Method),
+			zap.String("path", c.FullPath()),
+			zap.Int("status", c.Writer.Status()),
+			zap.Duration("latency", time.Since(start)),
+			zap.String("request_id", c.GetString("request_id")),
+		}
+		if code := c.GetString(response.ErrorCodeContextKey); code != "" {
+			fields = append(fields, zap.String("error_code", code))
+		}
+		log.Info("http request", fields...)
 	}
 }
 func Recover(log *zap.Logger) gin.HandlerFunc {

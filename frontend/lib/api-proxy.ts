@@ -24,6 +24,12 @@ export function apiUnavailableResponse(message = "Backend sedang tidak tersedia"
   return apiErrorResponse(503, "API_UNAVAILABLE", message, extraHeaders);
 }
 
+function dependencyHeaders(upstreamStatus: number, extraHeaders?: HeadersInit) {
+  const headers = new Headers(extraHeaders);
+  headers.set("X-Upstream-Status", String(upstreamStatus));
+  return headers;
+}
+
 export async function decodeUpstreamJSON<T>(upstream: Response, extraHeaders?: HeadersInit): Promise<DecodedUpstream<T>> {
   const requestId = upstream.headers.get("x-request-id") || crypto.randomUUID();
   const raw = await upstream.text();
@@ -36,12 +42,12 @@ export async function decodeUpstreamJSON<T>(upstream: Response, extraHeaders?: H
     return {
       valid: false,
       response: apiErrorResponse(
-        routeMissing ? 404 : 502,
+        routeMissing ? 404 : 424,
         routeMissing ? "UPSTREAM_ROUTE_NOT_FOUND" : "UPSTREAM_INVALID_RESPONSE",
         routeMissing
           ? "Endpoint backend tidak ditemukan. Pastikan backend dan frontend menggunakan versi deployment yang sama."
           : "Backend mengembalikan respons yang tidak valid.",
-        extraHeaders,
+        routeMissing ? extraHeaders : dependencyHeaders(upstream.status, extraHeaders),
         requestId,
       ),
     };
@@ -50,7 +56,13 @@ export async function decodeUpstreamJSON<T>(upstream: Response, extraHeaders?: H
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return {
       valid: false,
-      response: apiErrorResponse(502, "UPSTREAM_INVALID_RESPONSE", "Format respons backend tidak valid.", extraHeaders, requestId),
+      response: apiErrorResponse(
+        424,
+        "UPSTREAM_INVALID_RESPONSE",
+        "Format respons backend tidak valid.",
+        dependencyHeaders(upstream.status, extraHeaders),
+        requestId,
+      ),
     };
   }
   return { valid: true, payload: payload as T, requestId };
@@ -63,5 +75,11 @@ export function apiEnvelopeResponse(payload: unknown, status: number, requestId:
 export async function forwardUpstreamJSON(upstream: Response, extraHeaders?: HeadersInit) {
   const decoded = await decodeUpstreamJSON<unknown>(upstream, extraHeaders);
   if (!decoded.valid) return decoded.response;
+  if (upstream.status === 502) {
+    // Cloudflare replaces an origin 502 body with its own HTML error page.
+    // Preserve the backend status in a header and use Failed Dependency at
+    // the browser-facing BFF boundary so the JSON API envelope stays intact.
+    return apiEnvelopeResponse(decoded.payload, 424, decoded.requestId, dependencyHeaders(upstream.status, extraHeaders));
+  }
   return apiEnvelopeResponse(decoded.payload, upstream.status, decoded.requestId, extraHeaders);
 }

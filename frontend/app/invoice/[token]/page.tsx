@@ -130,7 +130,7 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ token:
 
       {data.payment.payable && <div className="print-hidden mt-8 rounded-2xl border bg-background p-5"><div className="flex items-start gap-3"><CreditCard className="mt-0.5 size-5 text-primary"/><div><p className="font-bold">Bayar online dengan Midtrans</p><p className="mt-1 text-sm text-muted-foreground">Pilih channel di halaman Midtrans. Nominal akhir termasuk biaya admin pelanggan akan dihitung sesuai channel dan pengaturan bengkel.</p></div></div><Button size="lg" className="mt-5 w-full" onClick={pay} disabled={paying}>{paying ? "Menyiapkan pembayaran..." : "Lanjut ke pembayaran"}</Button></div>}
 
-      <footer className="mt-10 border-t pt-5 text-center text-xs text-muted-foreground"><p className="font-semibold text-foreground">Pembayaran diproses oleh Midtrans.</p><p className="mt-1">Hubungi {data.branch.name} jika detail invoice tidak sesuai.</p></footer>
+      <footer className="mt-10 border-t pt-5 text-center text-xs text-muted-foreground"><p className="font-semibold text-foreground">{data.payment.method === "midtrans" ? "Pembayaran online diproses oleh Midtrans." : "Pembayaran tunai dicatat oleh bengkel."}</p><p className="mt-1">Hubungi {data.branch.name} jika detail invoice tidak sesuai.</p></footer>
     </section>
   </main>;
 }

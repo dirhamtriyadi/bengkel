@@ -85,10 +85,19 @@ func TestRedactMidtransSettingAndPaymentSnapshot(t *testing.T) {
 	}
 
 	metadata := redactMidtransPaymentMetadata(map[string]any{
-		midtransCredentialsSnapshotMetadataKey: "v1:secret", "transaction_id": "transaction-1",
+		midtransCredentialsSnapshotMetadataKey: "v1:secret",
+		"snap_token":                           "payment-secret",
+		"redirect_url":                         "https://example.test/payment-secret",
+		"transaction_id":                       "transaction-1",
 	})
 	if _, exists := metadata[midtransCredentialsSnapshotMetadataKey]; exists {
 		t.Fatal("payment metadata leaks credential snapshot")
+	}
+	if _, exists := metadata["snap_token"]; exists {
+		t.Fatal("payment metadata leaks Snap token")
+	}
+	if _, exists := metadata["redirect_url"]; exists {
+		t.Fatal("payment metadata leaks token-bearing redirect URL")
 	}
 	if metadata["transaction_id"] != "transaction-1" {
 		t.Fatal("non-secret payment metadata should be retained")

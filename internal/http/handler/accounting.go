@@ -430,7 +430,8 @@ type paymentResponseRow struct {
 func (h *Handler) ListPayments(c *gin.Context) {
 	query := h.DB.Table("payments p").Select(`p.id,p.created_at,p.updated_at,p.branch_id,p.sale_id,p.method,p.provider,
 		p.provider_reference,p.status,p.base_amount,p.amount,p.fee,p.customer_fee,p.provider_fee,p.fee_bearer,
-		p.payment_channel,p.paid_at,(p.metadata - ?) metadata,s.number sale_number,s.grand_total sale_total`, midtransCredentialsSnapshotMetadataKey).
+		p.payment_channel,p.paid_at,(p.metadata - ? - ? - ?) metadata,s.number sale_number,s.grand_total sale_total,s.status sale_status`,
+		midtransCredentialsSnapshotMetadataKey, "snap_token", "redirect_url").
 		Joins("JOIN sales s ON s.id=p.sale_id").
 		Where("p.branch_id=? AND p.deleted_at IS NULL", branchID(c))
 	rows := make([]paymentResponseRow, 0)
@@ -454,7 +455,8 @@ func (h *Handler) PaymentDetail(c *gin.Context) {
 	var row paymentResponseRow
 	err = h.DB.Table("payments p").Select(`p.id,p.created_at,p.updated_at,p.branch_id,p.sale_id,p.method,p.provider,
 		p.provider_reference,p.status,p.base_amount,p.amount,p.fee,p.customer_fee,p.provider_fee,p.fee_bearer,
-		p.payment_channel,p.paid_at,(p.metadata - ?) metadata,s.number sale_number,s.grand_total sale_total,s.status sale_status`, midtransCredentialsSnapshotMetadataKey).
+		p.payment_channel,p.paid_at,(p.metadata - ? - ? - ?) metadata,s.number sale_number,s.grand_total sale_total,s.status sale_status`,
+		midtransCredentialsSnapshotMetadataKey, "snap_token", "redirect_url").
 		Joins("JOIN sales s ON s.id=p.sale_id").Where("p.id=? AND p.branch_id=? AND p.deleted_at IS NULL", id, branchID(c)).Take(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		response.Error(c, http.StatusNotFound, "PAYMENT_NOT_FOUND", "Pembayaran tidak ditemukan")

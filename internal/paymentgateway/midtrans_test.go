@@ -1,6 +1,9 @@
 package paymentgateway
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestBuildSnapRequestKeepsGrossAmountAndItemTotalEqual(t *testing.T) {
 	request := BuildSnapRequest(SnapInput{
@@ -92,5 +95,22 @@ func TestBuildSnapRequestMapOmitsAutomaticFeeByDefault(t *testing.T) {
 	enabledPayments := (*request)["enabled_payments"].([]string)
 	if len(enabledPayments) != 1 || enabledPayments[0] != "other_qris" {
 		t.Fatalf("unexpected enabled payments: %#v", enabledPayments)
+	}
+}
+
+func TestSnapSessionCancelResultIsIdempotentAndDetectsProgress(t *testing.T) {
+	for _, body := range []string{
+		`{"error_messages":["token already canceled"]}`,
+		`{"error_messages":["token not found"]}`,
+	} {
+		if err := snapSessionCancelResult(404, []byte(body)); err != nil {
+			t.Fatalf("inactive token must be treated as cancelled: %v", err)
+		}
+	}
+	if err := snapSessionCancelResult(409, []byte(`{"error_messages":["Transaction is on progress"]}`)); !errors.Is(err, ErrSnapSessionInProgress) {
+		t.Fatalf("unexpected in-progress result: %v", err)
+	}
+	if err := snapSessionCancelResult(401, []byte(`{"error_messages":["Access denied"]}`)); err == nil {
+		t.Fatal("provider rejection must be returned")
 	}
 }

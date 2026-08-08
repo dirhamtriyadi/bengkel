@@ -101,6 +101,7 @@ func NewRouter(cfg config.Config, db *gorm.DB, log *zap.Logger) *gin.Engine {
 
 		secured.GET("/payments", middleware.RequirePermission("payment.read"), h.ListPayments)
 		secured.GET("/payments/:id", middleware.RequirePermission("payment.read"), h.PaymentDetail)
+		secured.POST("/payments/:id/change-method", middleware.RequirePermission("payment.manage"), h.ChangePaymentMethod)
 		secured.POST("/payments/:id/midtrans/snap", middleware.RequirePermission("payment.manage"), h.CreateMidtransSnap)
 		secured.POST("/payments/:id/midtrans/sync", middleware.RequirePermission("payment.manage"), h.SyncMidtransPayment)
 

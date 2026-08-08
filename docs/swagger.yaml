@@ -94,6 +94,19 @@ definitions:
     - name
     - timezone
     type: object
+  internal_http_handler.changePaymentMethodInput:
+    properties:
+      amount_received:
+        minimum: 0
+        type: integer
+      method:
+        enum:
+        - cash
+        - midtrans
+        type: string
+    required:
+    - method
+    type: object
   internal_http_handler.checkoutInput:
     properties:
       amount_paid:
@@ -1252,6 +1265,45 @@ paths:
       security:
       - BearerAuth: []
       summary: Detail pembayaran
+      tags:
+      - Payments
+  /payments/{id}/change-method:
+    post:
+      consumes:
+      - application/json
+      description: Membatalkan sesi/instruksi Midtrans lama, menyimpan attempt lama
+        sebagai riwayat, lalu membuat pembayaran tunai atau attempt Midtrans baru.
+        Hanya invoice pending yang dapat diproses.
+      parameters:
+      - description: ID payment attempt aktif
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Metode pembayaran pengganti
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_http_handler.changePaymentMethodInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/bengkel_internal_http_response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Ganti metode atau buat ulang attempt pembayaran
       tags:
       - Payments
   /payments/{id}/midtrans/snap:

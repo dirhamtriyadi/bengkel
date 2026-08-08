@@ -409,7 +409,7 @@ func redactMidtransPaymentMetadata(metadata map[string]any) map[string]any {
 	}
 	redacted := make(map[string]any, len(metadata))
 	for key, value := range metadata {
-		if key != midtransCredentialsSnapshotMetadataKey {
+		if key != midtransCredentialsSnapshotMetadataKey && key != "snap_token" && key != "redirect_url" {
 			redacted[key] = value
 		}
 	}

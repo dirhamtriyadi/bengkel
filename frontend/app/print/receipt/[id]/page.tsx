@@ -1,20 +1,118 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft,FileText,Printer,ReceiptText } from "lucide-react";
+import { ArrowLeft, FileText, Printer, ReceiptText } from "lucide-react";
 import Link from "next/link";
-import { use,useState } from "react";
+import { use, useState } from "react";
+import { ChangePaymentMethodDialog, type ChangeablePayment } from "@/components/change-payment-method-dialog";
+import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api";
 import { loadMidtransSnap, type MidtransSnapConfiguration } from "@/lib/midtrans";
-import { dateTime,rupiah } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { dateTime, rupiah } from "@/lib/utils";
 
-type Detail={sale:{number:string;status:string;created_at:string;subtotal:number;discount:number;tax:number;gateway_fee:number;grand_total:number;amount_paid:number;change_amount:number};items:{id:string;description:string;quantity:number;unit_price:number;subtotal:number}[];payments:{id:string;method:string;status:string;payment_channel:string;customer_fee:number;provider_reference:string}[];branch:{name:string;address:string;phone:string}};
+type ReceiptPayment = ChangeablePayment & {
+  payment_channel: string;
+  customer_fee: number;
+  provider_reference: string;
+};
 
-export default function Receipt({params}:{params:Promise<{id:string}>}){
- const {id}=use(params);const [format,setFormat]=useState<"thermal"|"a4">("thermal");const [paying,setPaying]=useState(false);const [paymentError,setPaymentError]=useState("");const query=useQuery({queryKey:["receipt",id],queryFn:()=>apiClient<Detail>(`/sales/${id}`),refetchInterval:result=>result.state.data?.data?.sale.status==="pending"?3000:false});const data=query.data?.data;
- if(!data)return <main className="grid min-h-screen place-items-center">{query.isError?query.error.message:"Memuat bukti transaksi..."}</main>;
- const paid=data.sale.status==="paid";const payment=data.payments.find(row=>row.method==="midtrans"&&row.status==="pending");
- async function continuePayment(){if(!payment)return;setPaying(true);setPaymentError("");try{const sync=async()=>{await apiClient(`/payments/${payment.id}/midtrans/sync`,{method:"POST"});await query.refetch()};const result=await apiClient<MidtransSnapConfiguration&{token:string}>(`/payments/${payment.id}/midtrans/snap`,{method:"POST"});if(!result.data?.token)throw new Error("Midtrans Snap belum siap. Muat ulang halaman lalu coba lagi.");await loadMidtransSnap(result.data);if(!window.snap)throw new Error("Midtrans Snap belum siap.");window.snap.pay(result.data.token,{onSuccess:()=>{void sync()},onPending:()=>{void sync()},onError:()=>setPaymentError("Pembayaran ditolak oleh Midtrans."),onClose:()=>setPaymentError("Popup ditutup. Pembayaran masih dapat dilanjutkan dari halaman ini.")})}catch(error){setPaymentError(error instanceof Error?error.message:"Pembayaran Midtrans gagal")}finally{setPaying(false)}}
- return <main className={`receipt-page receipt-${format} mx-auto min-h-screen bg-white p-6 ${format==="a4"?"sm:p-12":""}`}><div className="print-hidden mb-8 flex flex-wrap justify-between gap-3"><Link href="/dashboard/sales" className="flex items-center gap-2 text-sm font-semibold"><ArrowLeft className="size-4"/>Kembali</Link><div className="flex flex-wrap gap-2">{payment&&<Button disabled={paying} onClick={continuePayment}>{paying?"Menyiapkan...":"Lanjutkan pembayaran"}</Button>}<Button variant={format==="thermal"?"default":"outline"} onClick={()=>setFormat("thermal")}><ReceiptText className="size-4"/>Thermal 80mm</Button><Button variant={format==="a4"?"default":"outline"} onClick={()=>setFormat("a4")}><FileText className="size-4"/>A4</Button><Button onClick={()=>window.print()}><Printer className="size-4"/>Cetak</Button></div></div>{paymentError&&<p className="print-hidden mb-5 rounded-xl bg-red-50 p-4 text-sm text-red-700">{paymentError}</p>}<section className={format==="a4"?"mx-auto max-w-[720px]":""}><header className="flex justify-between gap-4 border-b-2 border-foreground pb-6"><div><h1 className={`${format==="thermal"?"text-lg":"text-2xl"} font-black`}>{data.branch.name}</h1><p className="mt-2 max-w-sm text-xs text-muted-foreground">{data.branch.address}<br/>{data.branch.phone}</p></div><div className="text-right"><p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{paid?"Bukti transaksi":"Invoice pending"}</p><p className="mt-1 font-black">{data.sale.number}</p><p className="mt-1 text-xs">{dateTime.format(new Date(data.sale.created_at))}</p></div></header>{!paid&&<p className="my-4 border border-orange-300 bg-orange-50 p-3 text-center text-xs font-bold text-orange-700">Pembayaran belum dikonfirmasi. Halaman akan memperbarui status otomatis.</p>}<table className="my-6 w-full text-xs"><thead><tr className="border-b text-left"><th className="py-2">Item</th><th className="py-2 text-right">Qty</th><th className="py-2 text-right">Harga</th><th className="py-2 text-right">Jumlah</th></tr></thead><tbody>{data.items.map(item=><tr key={item.id} className="border-b"><td className="py-2 font-medium">{item.description}</td><td className="py-2 text-right">{item.quantity}</td><td className="py-2 text-right">{rupiah.format(item.unit_price)}</td><td className="py-2 text-right">{rupiah.format(item.subtotal)}</td></tr>)}</tbody></table><div className="ml-auto max-w-xs space-y-2 text-xs">{[["Subtotal",data.sale.subtotal],["Diskon",-data.sale.discount],["Pajak",data.sale.tax],["Biaya admin pelanggan",data.sale.gateway_fee]].map(([label,value])=><div className="flex justify-between" key={String(label)}><span>{label}</span><span>{rupiah.format(Number(value))}</span></div>)}<div className="flex justify-between border-t-2 border-foreground pt-3 text-base font-black"><span>Total</span><span>{rupiah.format(data.sale.grand_total)}</span></div><div className="flex justify-between"><span>Dibayar</span><span>{rupiah.format(data.sale.amount_paid)}</span></div><div className="flex justify-between"><span>Kembali</span><span>{rupiah.format(data.sale.change_amount)}</span></div><div className="flex justify-between"><span>Metode</span><span className="uppercase">{data.payments[0]?.method??"—"}</span></div>{data.payments[0]?.payment_channel&&<div className="flex justify-between"><span>Channel</span><span className="uppercase">{data.payments[0].payment_channel.replaceAll("_"," ")}</span></div>}{data.payments[0]?.provider_reference&&<div className="flex justify-between"><span>Referensi</span><span>{data.payments[0].provider_reference}</span></div>}</div><footer className="mt-10 border-t pt-4 text-center text-xs text-muted-foreground"><p className="font-semibold text-foreground">Terima kasih telah mempercayakan motor Anda kepada kami.</p><p className="mt-1">Simpan bukti ini untuk riwayat servis dan klaim.</p></footer></section></main>
+type Detail = {
+  sale: {
+    id: string;
+    number: string;
+    status: string;
+    created_at: string;
+    subtotal: number;
+    discount: number;
+    tax: number;
+    gateway_fee: number;
+    grand_total: number;
+    amount_paid: number;
+    change_amount: number;
+  };
+  items: { id: string; description: string; quantity: number; unit_price: number; subtotal: number }[];
+  payments: ReceiptPayment[];
+  branch: { name: string; address: string; phone: string };
+};
+
+export default function Receipt({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const [format, setFormat] = useState<"thermal" | "a4">("thermal");
+  const [paying, setPaying] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
+  const query = useQuery({
+    queryKey: ["receipt", id],
+    queryFn: () => apiClient<Detail>(`/sales/${id}`),
+    refetchInterval: (result) => result.state.data?.data?.sale.status === "pending" ? 3000 : false,
+  });
+  const data = query.data?.data;
+  if (!data) {
+    return <main className="grid min-h-screen place-items-center">{query.isError ? query.error.message : "Memuat bukti transaksi..."}</main>;
+  }
+
+  const paid = data.sale.status === "paid";
+  const activePayment = data.payments.find((row) => row.status === "pending" || row.status === "paid") ?? data.payments[0];
+  const midtransPayment = activePayment?.method === "midtrans" && activePayment.status === "pending" ? activePayment : undefined;
+  const canChangeMethod = data.sale.status === "pending" && activePayment && ["pending", "failed", "expired"].includes(activePayment.status);
+
+  async function continuePayment() {
+    if (!midtransPayment) return;
+    setPaying(true);
+    setPaymentError("");
+    try {
+      const sync = async () => {
+        await apiClient(`/payments/${midtransPayment.id}/midtrans/sync`, { method: "POST" });
+        await query.refetch();
+      };
+      const result = await apiClient<MidtransSnapConfiguration & { token: string }>(`/payments/${midtransPayment.id}/midtrans/snap`, { method: "POST" });
+      if (!result.data?.token) throw new Error("Midtrans Snap belum siap. Muat ulang halaman lalu coba lagi.");
+      await loadMidtransSnap(result.data);
+      if (!window.snap) throw new Error("Midtrans Snap belum siap.");
+      window.snap.pay(result.data.token, {
+        onSuccess: () => { void sync(); },
+        onPending: () => { void sync(); },
+        onError: () => setPaymentError("Pembayaran ditolak oleh Midtrans."),
+        onClose: () => setPaymentError("Popup ditutup. Pembayaran masih dapat dilanjutkan dari halaman ini."),
+      });
+    } catch (error) {
+      setPaymentError(error instanceof Error ? error.message : "Pembayaran Midtrans gagal");
+    } finally {
+      setPaying(false);
+    }
+  }
+
+  return <main className={`receipt-page receipt-${format} mx-auto min-h-screen bg-white p-6 ${format === "a4" ? "sm:p-12" : ""}`}>
+    <div className="print-hidden mb-8 flex flex-wrap justify-between gap-3">
+      <Link href="/dashboard/sales" className="flex items-center gap-2 text-sm font-semibold"><ArrowLeft className="size-4" />Kembali</Link>
+      <div className="flex flex-wrap gap-2">
+        {midtransPayment && <Button disabled={paying} onClick={continuePayment}>{paying ? "Menyiapkan..." : "Lanjutkan pembayaran"}</Button>}
+        {canChangeMethod && <ChangePaymentMethodDialog payment={{ ...activePayment, sale_number: data.sale.number }} />}
+        <Button variant={format === "thermal" ? "default" : "outline"} onClick={() => setFormat("thermal")}><ReceiptText className="size-4" />Thermal 80mm</Button>
+        <Button variant={format === "a4" ? "default" : "outline"} onClick={() => setFormat("a4")}><FileText className="size-4" />A4</Button>
+        <Button onClick={() => window.print()}><Printer className="size-4" />Cetak</Button>
+      </div>
+    </div>
+    {paymentError && <p className="print-hidden mb-5 rounded-xl bg-red-50 p-4 text-sm text-red-700">{paymentError}</p>}
+    <section className={format === "a4" ? "mx-auto max-w-[720px]" : ""}>
+      <header className="flex justify-between gap-4 border-b-2 border-foreground pb-6">
+        <div><h1 className={`${format === "thermal" ? "text-lg" : "text-2xl"} font-black`}>{data.branch.name}</h1><p className="mt-2 max-w-sm text-xs text-muted-foreground">{data.branch.address}<br />{data.branch.phone}</p></div>
+        <div className="text-right"><p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{paid ? "Bukti transaksi" : "Invoice pending"}</p><p className="mt-1 font-black">{data.sale.number}</p><p className="mt-1 text-xs">{dateTime.format(new Date(data.sale.created_at))}</p></div>
+      </header>
+      {!paid && <p className="my-4 border border-orange-300 bg-orange-50 p-3 text-center text-xs font-bold text-orange-700">Pembayaran belum dikonfirmasi. Metode masih dapat diganti selama invoice pending.</p>}
+      <table className="my-6 w-full text-xs">
+        <thead><tr className="border-b text-left"><th className="py-2">Item</th><th className="py-2 text-right">Qty</th><th className="py-2 text-right">Harga</th><th className="py-2 text-right">Jumlah</th></tr></thead>
+        <tbody>{data.items.map((item) => <tr key={item.id} className="border-b"><td className="py-2 font-medium">{item.description}</td><td className="py-2 text-right">{item.quantity}</td><td className="py-2 text-right">{rupiah.format(item.unit_price)}</td><td className="py-2 text-right">{rupiah.format(item.subtotal)}</td></tr>)}</tbody>
+      </table>
+      <div className="ml-auto max-w-xs space-y-2 text-xs">
+        {[["Subtotal", data.sale.subtotal], ["Diskon", -data.sale.discount], ["Pajak", data.sale.tax], ["Biaya admin pelanggan", data.sale.gateway_fee]].map(([label, value]) => <div className="flex justify-between" key={String(label)}><span>{label}</span><span>{rupiah.format(Number(value))}</span></div>)}
+        <div className="flex justify-between border-t-2 border-foreground pt-3 text-base font-black"><span>Total</span><span>{rupiah.format(data.sale.grand_total)}</span></div>
+        <div className="flex justify-between"><span>Dibayar</span><span>{rupiah.format(data.sale.amount_paid)}</span></div>
+        <div className="flex justify-between"><span>Kembali</span><span>{rupiah.format(data.sale.change_amount)}</span></div>
+        <div className="flex justify-between"><span>Metode</span><span className="uppercase">{activePayment?.method ?? "—"}</span></div>
+        {activePayment?.payment_channel && <div className="flex justify-between"><span>Channel</span><span className="uppercase">{activePayment.payment_channel.replaceAll("_", " ")}</span></div>}
+        {activePayment?.provider_reference && <div className="flex justify-between"><span>Referensi</span><span>{activePayment.provider_reference}</span></div>}
+      </div>
+      <footer className="mt-10 border-t pt-4 text-center text-xs text-muted-foreground"><p className="font-semibold text-foreground">Terima kasih telah mempercayakan motor Anda kepada kami.</p><p className="mt-1">Simpan bukti ini untuk riwayat servis dan klaim.</p></footer>
+    </section>
+  </main>;
 }

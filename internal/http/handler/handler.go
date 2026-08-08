@@ -937,7 +937,7 @@ func (h *Handler) ListSales(c *gin.Context) {
 	query := h.DB.Model(&model.Sale{}).Select(`sales.*,
 		COALESCE((SELECT c.name FROM customers c WHERE c.id=sales.customer_id AND c.deleted_at IS NULL), '') customer_name,
 		COALESCE((SELECT c.phone FROM customers c WHERE c.id=sales.customer_id AND c.deleted_at IS NULL), '') customer_phone,
-		COALESCE((SELECT p.method FROM payments p WHERE p.sale_id=sales.id AND p.deleted_at IS NULL ORDER BY p.created_at DESC LIMIT 1), '') payment_method`).
+		COALESCE((SELECT p.method FROM payments p WHERE p.sale_id=sales.id AND p.deleted_at IS NULL ORDER BY p.created_at DESC, p.id DESC LIMIT 1), '') payment_method`).
 		Where("sales.branch_id=?", branchID(c))
 	list(c, query, &rows, []string{"number", "status", "notes"})
 }
@@ -958,7 +958,7 @@ func (h *Handler) SaleDetail(c *gin.Context) {
 	var items []model.SaleItem
 	var payments []model.Payment
 	h.DB.Where("sale_id=?", sale.ID).Find(&items)
-	h.DB.Where("sale_id=?", sale.ID).Find(&payments)
+	h.DB.Where("sale_id=?", sale.ID).Order("created_at DESC, id DESC").Find(&payments)
 	for index := range payments {
 		payments[index] = redactedPayment(payments[index])
 	}
@@ -1413,7 +1413,7 @@ func (h *Handler) respondMidtransStatusError(c *gin.Context, err error) {
 
 func (h *Handler) applyMidtransTransaction(payment model.Payment, transaction *paymentgateway.TransactionStatus) (string, bool, error) {
 	status := "pending"
-	if (transaction.TransactionStatus == "capture" && transaction.FraudStatus == "accept") || transaction.TransactionStatus == "settlement" {
+	if midtransTransactionSuccessful(transaction) {
 		status = "paid"
 	} else if transaction.TransactionStatus == "deny" || transaction.TransactionStatus == "cancel" || transaction.TransactionStatus == "expire" {
 		status = "failed"

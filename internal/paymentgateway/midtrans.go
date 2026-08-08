@@ -3,7 +3,9 @@ package paymentgateway
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -11,8 +13,11 @@ import (
 	"time"
 
 	"github.com/midtrans/midtrans-go"
+	"github.com/midtrans/midtrans-go/coreapi"
 	"github.com/midtrans/midtrans-go/snap"
 )
+
+var ErrSnapSessionInProgress = errors.New("midtrans snap transaction is in progress")
 
 type Midtrans struct {
 	serverKey   string
@@ -139,6 +144,65 @@ func (gateway Midtrans) CheckTransaction(ctx context.Context, orderID string) (*
 		TransactionStatus:         result.TransactionStatus,
 		FraudStatus:               result.FraudStatus,
 	}, nil
+}
+
+// CancelSnapSession invalidates a Snap token before the customer chooses a
+// payment channel. A token that is already cancelled or unknown is safe to
+// treat as inactive, which keeps this operation idempotent.
+func (gateway Midtrans) CancelSnapSession(ctx context.Context, token string) error {
+	endpoint := fmt.Sprintf("%s/snap/v1/transactions/%s/cancel", gateway.environment.SnapURL(), url.PathEscape(strings.TrimSpace(token)))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, nil)
+	if err != nil {
+		return &Error{StatusCode: http.StatusInternalServerError, Message: "Tidak dapat membuat permintaan pembatalan sesi Midtrans"}
+	}
+	request.Header.Set("Authorization", gateway.serverKey)
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Content-Type", "application/json")
+	response, err := (&http.Client{Timeout: 15 * time.Second}).Do(request)
+	if err != nil {
+		return &Error{StatusCode: http.StatusBadGateway, Message: "Midtrans tidak dapat dihubungi untuk membatalkan sesi pembayaran"}
+	}
+	defer response.Body.Close()
+	body, readErr := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	if readErr != nil {
+		return &Error{StatusCode: http.StatusBadGateway, Message: "Respons pembatalan sesi Midtrans tidak dapat dibaca"}
+	}
+	return snapSessionCancelResult(response.StatusCode, body)
+}
+
+// ExpireTransaction makes an already selected pending payment instruction no
+// longer payable before the application creates its replacement attempt.
+func (gateway Midtrans) ExpireTransaction(ctx context.Context, orderID string) error {
+	client := coreapi.Client{}
+	client.New(gateway.serverKey, gateway.environment)
+	client.HttpClient = secureHTTPClient()
+	client.Options.SetContext(ctx)
+	if _, midtransError := client.ExpireTransaction(orderID); midtransError != nil {
+		return providerError(midtransError)
+	}
+	return nil
+}
+
+func snapSessionCancelResult(statusCode int, body []byte) error {
+	var payload struct {
+		ErrorMessages []string `json:"error_messages"`
+	}
+	_ = json.Unmarshal(body, &payload)
+	message := strings.TrimSpace(strings.Join(payload.ErrorMessages, "; "))
+	normalized := strings.ToLower(message)
+	if statusCode >= 200 && statusCode < 300 {
+		return nil
+	}
+	if strings.Contains(normalized, "token already canceled") || strings.Contains(normalized, "token already cancelled") || strings.Contains(normalized, "token not found") {
+		return nil
+	}
+	if strings.Contains(normalized, "transaction is on progress") {
+		return ErrSnapSessionInProgress
+	}
+	if message == "" {
+		message = "Midtrans menolak pembatalan sesi pembayaran"
+	}
+	return &Error{StatusCode: statusCode, Message: message}
 }
 
 func secureHTTPClient() midtrans.HttpClient {

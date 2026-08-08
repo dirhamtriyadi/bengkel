@@ -215,7 +215,7 @@ func (h *Handler) WorkOrderDetail(c *gin.Context) {
 	if err := h.DB.Where("work_order_id=? AND status NOT IN ('void','refunded')", row.ID).Order("created_at DESC").First(&activeSale).Error; err == nil {
 		sale = &activeSale
 		var activePayment model.Payment
-		if err := h.DB.Where("sale_id=?", activeSale.ID).Order("created_at DESC").First(&activePayment).Error; err == nil {
+		if err := h.DB.Where("sale_id=?", activeSale.ID).Order("created_at DESC, id DESC").First(&activePayment).Error; err == nil {
 			redacted := redactedPayment(activePayment)
 			payment = &redacted
 		}

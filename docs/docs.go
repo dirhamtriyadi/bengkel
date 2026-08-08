@@ -1212,6 +1212,64 @@ const docTemplate = `{
                 }
             }
         },
+        "/payments/{id}/change-method": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Membatalkan sesi/instruksi Midtrans lama, menyimpan attempt lama sebagai riwayat, lalu membuat pembayaran tunai atau attempt Midtrans baru. Hanya invoice pending yang dapat diproses.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Ganti metode atau buat ulang attempt pembayaran",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID payment attempt aktif",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Metode pembayaran pengganti",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handler.changePaymentMethodInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/bengkel_internal_http_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
         "/payments/{id}/midtrans/snap": {
             "post": {
                 "security": [
@@ -2807,6 +2865,25 @@ const docTemplate = `{
                 "timezone": {
                     "type": "string",
                     "maxLength": 60
+                }
+            }
+        },
+        "internal_http_handler.changePaymentMethodInput": {
+            "type": "object",
+            "required": [
+                "method"
+            ],
+            "properties": {
+                "amount_received": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "method": {
+                    "type": "string",
+                    "enum": [
+                        "cash",
+                        "midtrans"
+                    ]
                 }
             }
         },

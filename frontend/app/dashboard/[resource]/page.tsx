@@ -1,9 +1,11 @@
 "use client";
-import { Copy,ExternalLink,Loader2,MessageCircle,Send } from "lucide-react";
+import { Copy,ExternalLink,Eye,Loader2,MessageCircle,Send } from "lucide-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ChangePaymentMethodDialog, type ChangeablePayment } from "@/components/change-payment-method-dialog";
 import { DataTable,type TableColumn,type TableRow } from "@/components/data-table";
 import { Dialog,DialogContent,DialogDescription,DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -36,4 +38,21 @@ function SendInvoiceAction({row}:{row:TableRow}){
   return <Dialog open={open} onOpenChange={value=>{setOpen(value);if(!value){setError("");setCopied(false);setResult(undefined)}}}><Button size="sm" variant="outline" disabled={!hasPhone} title={hasPhone?"Kirim invoice publik":"Pelanggan belum memiliki nomor WhatsApp"} onClick={()=>setOpen(true)}><MessageCircle className="size-4"/>Kirim invoice</Button><DialogContent className="max-w-lg"><DialogTitle>Kirim invoice lewat WhatsApp</DialogTitle><DialogDescription>Invoice {String(row.number)} akan dikirim ke nomor pada profil pelanggan. Tautan dapat dibuka dan dibayar tanpa login.</DialogDescription>{!result?<div className="mt-6"><div className="rounded-xl bg-muted p-4 text-sm"><p className="font-semibold">{String(row.customer_name||"Pelanggan")}</p><p className="mt-1 text-muted-foreground">{String(row.customer_phone)}</p><p className="mt-3 font-bold">{rupiah.format(Number(row.grand_total??0))}</p></div>{error&&<p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}<div className="mt-5 flex justify-end gap-2"><Button variant="outline" onClick={()=>setOpen(false)}>Batal</Button><Button disabled={sending} onClick={sendInvoice}>{sending?<Loader2 className="size-4 animate-spin"/>:<Send className="size-4"/>}{sending?"Mengirim...":"Kirim sekarang"}</Button></div></div>:<div className="mt-6"><div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800"><p className="font-bold">Invoice berhasil dikirim</p><p className="mt-1">Tujuan {result.whatsapp.recipient} · berlaku sampai {dateTime.format(new Date(result.expires_at))}</p></div><label className="mt-4 block text-sm font-semibold">Tautan publik<Input readOnly className="mt-2 font-mono text-xs" value={result.public_url}/></label>{error&&<p className="mt-3 text-sm text-red-700">{error}</p>}<div className="mt-5 flex flex-wrap justify-end gap-2"><Button variant="outline" onClick={copyLink}><Copy className="size-4"/>{copied?"Tersalin":"Salin"}</Button><Button variant="outline" onClick={()=>window.open(result.public_url,"_blank","noopener,noreferrer")}><ExternalLink className="size-4"/>Buka invoice</Button><Button onClick={()=>setOpen(false)}>Selesai</Button></div></div>}</DialogContent></Dialog>
 }
 
-export default function ResourcePage(){const {resource}=useParams<{resource:string}>();const config=configs[resource];if(!config)return <div className="rounded-2xl border bg-white p-10">Halaman tidak ditemukan.</div>;const actions=resource==="sales"?(row:TableRow)=><SendInvoiceAction row={row}/>:undefined;return <div className="space-y-6"><div><h1 className="text-3xl font-bold tracking-tight">{config.title}</h1><p className="mt-2 text-muted-foreground">{config.description}</p></div><DataTable endpoint={config.endpoint} columns={config.columns} actions={actions}/></div>}
+function SalesActions({row}:{row:TableRow}){
+  return <div className="flex flex-wrap gap-2">
+    <Link className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border bg-background px-3 text-sm font-semibold hover:bg-muted" href={`/print/receipt/${String(row.id)}`}><Eye className="size-4"/>Lihat</Link>
+    <SendInvoiceAction row={row}/>
+  </div>;
+}
+
+function PaymentActions({row}:{row:TableRow}){
+  const metadata=(row.metadata??{}) as Record<string,unknown>;
+  const eligible=String(row.sale_status)==="pending"&&["pending","failed","expired"].includes(String(row.status))&&!metadata.superseded_by;
+  const payment:ChangeablePayment={id:String(row.id),sale_id:String(row.sale_id),sale_number:String(row.sale_number??""),method:String(row.method),status:String(row.status),base_amount:Number(row.base_amount??0),amount:Number(row.amount??0)};
+  return <div className="flex flex-wrap gap-2">
+    <Link className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border bg-background px-3 text-sm font-semibold hover:bg-muted" href={`/print/receipt/${payment.sale_id}`}><Eye className="size-4"/>Invoice</Link>
+    {eligible&&<ChangePaymentMethodDialog payment={payment}/>}
+  </div>;
+}
+
+export default function ResourcePage(){const {resource}=useParams<{resource:string}>();const config=configs[resource];if(!config)return <div className="rounded-2xl border bg-white p-10">Halaman tidak ditemukan.</div>;const actions=resource==="sales"?(row:TableRow)=><SalesActions row={row}/>:resource==="payments"?(row:TableRow)=><PaymentActions row={row}/>:undefined;return <div className="space-y-6"><div><h1 className="text-3xl font-bold tracking-tight">{config.title}</h1><p className="mt-2 text-muted-foreground">{config.description}</p></div><DataTable endpoint={config.endpoint} columns={config.columns} actions={actions}/></div>}

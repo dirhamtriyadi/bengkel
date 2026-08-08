@@ -209,7 +209,7 @@ func (h *Handler) SendPublicInvoiceWhatsApp(c *gin.Context) {
 		return
 	}
 	var payment model.Payment
-	if err := h.DB.Where("sale_id=? AND branch_id=?", sale.ID, sale.BranchID).Order("created_at DESC").First(&payment).Error; err != nil {
+	if err := h.DB.Where("sale_id=? AND branch_id=?", sale.ID, sale.BranchID).Order("created_at DESC, id DESC").First(&payment).Error; err != nil {
 		serverError(c)
 		return
 	}
@@ -316,7 +316,7 @@ func (h *Handler) loadPublicInvoice(ctx context.Context, token string) (publicIn
 	if err := db.Where("id=? AND branch_id=?", bundle.Link.SaleID, bundle.Link.BranchID).First(&bundle.Sale).Error; err != nil {
 		return publicInvoiceBundle{}, err
 	}
-	if err := db.Where("sale_id=? AND branch_id=?", bundle.Sale.ID, bundle.Sale.BranchID).Order("created_at DESC").First(&bundle.Payment).Error; err != nil {
+	if err := db.Where("sale_id=? AND branch_id=?", bundle.Sale.ID, bundle.Sale.BranchID).Order("created_at DESC, id DESC").First(&bundle.Payment).Error; err != nil {
 		return publicInvoiceBundle{}, err
 	}
 	if bundle.Sale.CustomerID != nil {

@@ -1,6 +1,7 @@
 package paymentgateway
 
 import (
+	"context"
 	"errors"
 	"testing"
 )
@@ -112,5 +113,23 @@ func TestSnapSessionCancelResultIsIdempotentAndDetectsProgress(t *testing.T) {
 	}
 	if err := snapSessionCancelResult(401, []byte(`{"error_messages":["Access denied"]}`)); err == nil {
 		t.Fatal("provider rejection must be returned")
+	}
+}
+
+func TestSnapSessionCancelRequestUsesBasicServerKeyAuthentication(t *testing.T) {
+	gateway := NewMidtrans("SB-Mid-server-secret", false)
+	request, err := gateway.snapSessionCancelRequest(context.Background(), "snap-token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	username, password, ok := request.BasicAuth()
+	if !ok || username != "SB-Mid-server-secret" || password != "" {
+		t.Fatalf("unexpected Basic Auth credentials: username=%q password=%q ok=%v", username, password, ok)
+	}
+	if request.Header.Get("Authorization") == "SB-Mid-server-secret" {
+		t.Fatal("Server Key must not be sent as a raw Authorization value")
+	}
+	if request.URL.Host != "app.sandbox.midtrans.com" {
+		t.Fatalf("unexpected sandbox host: %s", request.URL.Host)
 	}
 }

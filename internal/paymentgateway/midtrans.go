@@ -150,14 +150,10 @@ func (gateway Midtrans) CheckTransaction(ctx context.Context, orderID string) (*
 // payment channel. A token that is already cancelled or unknown is safe to
 // treat as inactive, which keeps this operation idempotent.
 func (gateway Midtrans) CancelSnapSession(ctx context.Context, token string) error {
-	endpoint := fmt.Sprintf("%s/snap/v1/transactions/%s/cancel", gateway.environment.SnapURL(), url.PathEscape(strings.TrimSpace(token)))
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, nil)
+	request, err := gateway.snapSessionCancelRequest(ctx, token)
 	if err != nil {
 		return &Error{StatusCode: http.StatusInternalServerError, Message: "Tidak dapat membuat permintaan pembatalan sesi Midtrans"}
 	}
-	request.Header.Set("Authorization", gateway.serverKey)
-	request.Header.Set("Accept", "application/json")
-	request.Header.Set("Content-Type", "application/json")
 	response, err := (&http.Client{Timeout: 15 * time.Second}).Do(request)
 	if err != nil {
 		return &Error{StatusCode: http.StatusBadGateway, Message: "Midtrans tidak dapat dihubungi untuk membatalkan sesi pembayaran"}
@@ -168,6 +164,18 @@ func (gateway Midtrans) CancelSnapSession(ctx context.Context, token string) err
 		return &Error{StatusCode: http.StatusBadGateway, Message: "Respons pembatalan sesi Midtrans tidak dapat dibaca"}
 	}
 	return snapSessionCancelResult(response.StatusCode, body)
+}
+
+func (gateway Midtrans) snapSessionCancelRequest(ctx context.Context, token string) (*http.Request, error) {
+	endpoint := fmt.Sprintf("%s/snap/v1/transactions/%s/cancel", gateway.environment.SnapURL(), url.PathEscape(strings.TrimSpace(token)))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	request.SetBasicAuth(gateway.serverKey, "")
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Content-Type", "application/json")
+	return request, nil
 }
 
 // ExpireTransaction makes an already selected pending payment instruction no
